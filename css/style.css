@@ -107,6 +107,17 @@ select, input[type="text"], input[type="number"], textarea {
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .row > .fld { flex: 1 1 120px; }
 
+/* Selector de coche */
+.carpick { display: flex; align-items: center; gap: 8px; }
+#p-car-prev { width: 64px; height: 36px; flex: none; }
+.garage { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.gcar {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px 12px; cursor: pointer;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; font: 600 13px var(--f-body);
+}
+.gcar canvas { width: 100%; max-width: 120px; aspect-ratio: 22 / 38; height: auto; }
+.gcar[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+
 /* Juego */
 .game { background: var(--hud); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
 .hud { display: flex; flex-wrap: wrap; gap: 4px 22px; padding: 8px 14px; color: var(--hud-ink); font-variant-numeric: tabular-nums; }

@@ -56,5 +56,5 @@ export const PHYS = {
   reverse: 160,
   revMax: 80,
   steer: 2.9,    // giro (rad/s) a plena dirección
-  carR: 9,       // radio de colisión del coche
+  carR: 10,      // radio de colisión del coche
 };

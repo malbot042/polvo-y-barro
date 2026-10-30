@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
-const ORDER = ['util', 'config', 'tracks', 'track', 'game', 'editor', 'main'];
+const ORDER = ['util', 'config', 'tracks', 'track', 'car', 'game', 'editor', 'main'];
 
 const js = ORDER.map((m) => {
   const src = read(`js/${m}.js`)

@@ -35,6 +35,9 @@
     <div id="pane-play" class="pane" role="tabpanel" aria-labelledby="t-play">
       <div class="setup">
         <label class="fld">Circuito<select id="p-track"></select></label>
+        <div class="fld">Coche
+          <div class="carpick"><canvas id="p-car-prev" aria-hidden="true"></canvas><select id="p-car" aria-label="Decoración del coche"></select></div>
+        </div>
         <div class="fld">Modo
           <div class="seg" role="group" aria-label="Modo de juego">
             <button type="button" data-mode="rally" aria-pressed="true">Rally</button>
@@ -175,6 +178,10 @@
         <p>El trazado se dibuja con puntos. Cada tramo tiene su superficie y su ancho, y sobre el mapa se colocan rampas, latas, pacas y conos. Se prueba al momento, se guarda en el navegador y se comparte como texto.</p>
       </div>
     </div>
+
+    <h2>El coche</h2>
+    <p>Un compacto de rally con tracción total visto desde arriba: aletas ensanchadas sobre ruedas anchas, alerón trasero, toma de aire en el techo, rejillas en el capó, faldillas y, en algunas decoraciones, una rampa de faros auxiliares. Se ensucia mientras corres: barro marrón en los charcos, polvo en la tierra y nieve en la montaña. Elige tu decoración:</p>
+    <div class="garage" id="garage" role="group" aria-label="Decoraciones del coche"></div>
 
     <div class="tbl">
       <table class="surf">

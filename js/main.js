@@ -5,6 +5,7 @@ import { BUILTIN_RAW } from './tracks.js';
 import { resolveDef, normalizeDef } from './track.js';
 import { createGame } from './game.js';
 import { createEditor } from './editor.js';
+import { LIVERIES, drawCarPreview } from './car.js';
 
 const $ = (id) => document.getElementById(id);
 const BUILTIN = BUILTIN_RAW.map((d) => normalizeDef(resolveDef(d)));
@@ -13,6 +14,9 @@ let saved = (Array.isArray(store.get(SAVED_KEY, [])) ? store.get(SAVED_KEY, []) 
 let testDef = null;
 let mode = 'rally';
 let carColor = '#e4572e';
+let carId = store.get('pyb-car', 'paleta');
+if (!LIVERIES[carId]) carId = 'paleta';
+function playerLivery() { const L = LIVERIES[carId]; return { ...L, base: L.base || carColor }; }
 
 function trackList() {
   const l = BUILTIN.map((d, i) => ({ id: 'b' + i, label: d.name, def: d }));
@@ -29,13 +33,14 @@ function setPal(p) {
   carColor = getComputedStyle(r).getPropertyValue('--car').trim() || '#e4572e';
   store.set('pyb-pal', p);
   if (editor) editor.refresh();
+  drawCarUI();
 }
 document.querySelectorAll('button[data-pal]').forEach((b) => b.addEventListener('click', () => setPal(b.dataset.pal)));
 
 // ---------- Juego ----------
 const ovl = $('ovl');
 const game = createGame($('cv'), {
-  carColor: () => carColor,
+  livery: playerLivery,
   onResults: showResults,
 });
 
@@ -140,6 +145,39 @@ document.querySelectorAll('.pad').forEach((b) => {
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 });
 
+// ---------- Coche ----------
+const carSel = $('p-car');
+Object.entries(LIVERIES).forEach(([id, L]) => carSel.add(new Option(L.label, id)));
+carSel.value = carId;
+function setCar(id) {
+  carId = LIVERIES[id] ? id : 'paleta';
+  carSel.value = carId;
+  store.set('pyb-car', carId);
+  drawCarUI();
+}
+carSel.addEventListener('change', () => setCar(carSel.value));
+
+// Garaje: las cinco decoraciones, pulsables
+const garage = $('garage');
+Object.entries(LIVERIES).forEach(([id, L]) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'gcar'; b.dataset.car = id;
+  const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true');
+  const cap = document.createElement('span'); cap.textContent = L.label;
+  b.append(cv, cap);
+  b.addEventListener('click', () => setCar(id));
+  garage.append(b);
+});
+function drawCarUI() {
+  if (!garage) return;
+  drawCarPreview($('p-car-prev'), playerLivery(), '1', 0);
+  garage.querySelectorAll('.gcar').forEach((b) => {
+    const L = LIVERIES[b.dataset.car];
+    b.setAttribute('aria-pressed', b.dataset.car === carId);
+    drawCarPreview(b.querySelector('canvas'), { ...L, base: L.base || carColor }, '1');
+  });
+}
+
 // ---------- Editor ----------
 const editor = createEditor($('ecv'), {
   tracks: trackList,
@@ -214,6 +252,7 @@ refreshTrackSelect('b0');
 editor.load({ ...BUILTIN[0], name: 'Mi circuito' });
 loadSelected();
 
+drawCarUI();
 const ro = new ResizeObserver(() => { game.resize(); editor.resize(); });
 ro.observe($('cv')); ro.observe($('ecv'));
 game.resize(); editor.resize();

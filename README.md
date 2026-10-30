@@ -34,6 +34,10 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
 
+### Coches
+
+Cada coche es un compacto de rally visto desde arriba, con aletas ensanchadas, alerón, toma de aire en el techo, rejillas en el capó, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay cinco decoraciones para elegir. Se dibujan una vez en alta resolución y se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
+
 ## Editor de circuitos
 
 - **Trazado**: pulsa fuera de la pista para añadir un punto al final y sobre la pista para insertar uno en medio. Arrastra los puntos para moverlos.
@@ -65,6 +69,7 @@ css/style.css       estilos y paletas (azul y naranja, bosque, noche)
 js/config.js        superficies, entornos, objetos y física (ajusta aquí el manejo)
 js/tracks.js        circuitos incluidos
 js/track.js         geometría del trazado, notas del copiloto y dibujo de la pista
+js/car.js           coche de rally: sprite, decoraciones y suciedad
 js/game.js          simulación, IA, cámara y HUD sobre el canvas
 js/editor.js        editor de circuitos
 js/main.js          interfaz, pestañas y bucle principal

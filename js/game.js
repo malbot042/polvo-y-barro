@@ -1,12 +1,13 @@
 // Simulación, IA y render de la carrera (cámara cenital que sigue al coche).
 import { WW, WH, SP, M_PER_PX, clamp, wrapA, store, fmtTime } from './util.js';
 import { SURF, PHYS, VERGE } from './config.js';
-import { buildTrack, nearestGlobal, idxAdd, trackKey, drawCar, drawCone, drawNitro } from './track.js';
+import { buildTrack, nearestGlobal, idxAdd, trackKey, drawCone, drawNitro } from './track.js';
+import { drawCar, RIVAL_LIVERIES, GHOST_LIVERY } from './car.js';
 
 const RIVALS = [
-  { name: 'Lobo', color: '#2f6fd6', skill: 0.95, num: '2' },
-  { name: 'Niebla', color: '#2d9d5b', skill: 0.92, num: '3' },
-  { name: 'Rayo', color: '#8a4fd1', skill: 0.89, num: '4' },
+  { name: 'Lobo', livery: RIVAL_LIVERIES[0], skill: 0.95, num: '2' },
+  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.92, num: '3' },
+  { name: 'Rayo', livery: RIVAL_LIVERIES[2], skill: 0.89, num: '4' },
 ];
 const BEST_KEY = 'pyb-best-v1';
 const NO_INPUT = { t: 0, b: 0, s: 0, n: 0, hb: 0 };
@@ -84,7 +85,7 @@ export function createGame(cv, hooks) {
       return {
         ...d, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
         idx, nd: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
-        nitro: 2, nitroT: 0, air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
+        nitro: 2, nitroT: 0, air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra', dirt: { barro: 0, polvo: 0, nieve: 0 },
         lane, laneT: 1 + Math.random(), stuck: 0, rev: 0, rl: null, rr: null,
       };
     });
@@ -181,6 +182,15 @@ export function createGame(cv, hooks) {
       if (dx * dx + dy * dy < (p.r * 0.85) ** 2) { sf = SURF[p.k]; sk = p.k; }
     }
     c.sk = sk;
+    const sp0 = Math.hypot(c.vx, c.vy);
+    if (c.air <= 0 && sp0 > 40) {
+      const rate = { barro: 0.14, agua: 0.06, off: 0.035, verge: 0.025, tierra: 0.014, nieve: 0.02 }[sk] || 0;
+      if (rate) {
+        const snowy = sk === 'nieve' || ((sk === 'off' || sk === 'verge') && T.def.theme === 'nieve');
+        const kind = sk === 'barro' || sk === 'agua' ? 'barro' : snowy ? 'nieve' : 'polvo';
+        c.dirt[kind] = Math.min(1, c.dirt[kind] + rate * dt * (sp0 / PHYS.max) * 1.5);
+      }
+    }
 
     if (inp.n && c.nitro > 0 && c.nitroT <= 0 && c.air <= 0) { c.nitro--; c.nitroT = 1.4; }
     if (c.nitroT > 0) c.nitroT -= dt;
@@ -255,7 +265,7 @@ export function createGame(cv, hooks) {
     // efectos: marcas y polvo
     const sp = Math.hypot(c.vx, c.vy);
     const sliding = c.air <= 0 && sp > 40 && (Math.abs(c.ls) > 38 || (inp.hb && sp > 60) || (inp.b && c.fs > 90));
-    const rlx = c.x - fx * 9 + rx * 6, rly = c.y - fy * 9 + ry * 6, rrx = c.x - fx * 9 - rx * 6, rry = c.y - fy * 9 - ry * 6;
+    const rlx = c.x - fx * 8.6 + rx * 6.9, rly = c.y - fy * 8.6 + ry * 6.9, rrx = c.x - fx * 8.6 - rx * 6.9, rry = c.y - fy * 8.6 - ry * 6.9;
     const soft = sk === 'barro' || sk === 'nieve' || sk === 'off' || sk === 'verge';
     if (c.air <= 0 && (sliding || (soft && sp > 25)) && c.rl) {
       const col = sk === 'off' || sk === 'verge' ? T.theme.off.skid : (SURF[sk] || SURF.tierra).skid;
@@ -294,7 +304,7 @@ export function createGame(cv, hooks) {
     for (let i = 0; i < cars.length; i++) for (let j = i + 1; j < cars.length; j++) {
       const a = cars[i], b = cars[j];
       if (Math.abs(a.h - b.h) > 10) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, min = 17;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, min = 20;
       if (d >= min) continue;
       const nx = dx / d, ny = dy / d, o = (min - d) / 2;
       a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
@@ -309,7 +319,7 @@ export function createGame(cv, hooks) {
       for (const c of cars) {
         if (c.h > 8) continue;
         const dx = k.x - c.x, dy = k.y - c.y, d2 = dx * dx + dy * dy;
-        if (d2 < 196) {
+        if (d2 < 256) {
           const d = Math.sqrt(d2) || 1;
           k.vx = c.vx * 1.1 + (dx / d) * 60; k.vy = c.vy * 1.1 + (dy / d) * 60; k.va = (Math.random() - 0.5) * 20;
           c.vx *= 0.96; c.vy *= 0.96;
@@ -359,7 +369,7 @@ export function createGame(cv, hooks) {
     } else {
       hooks.onResults({
         mode, track: def.name,
-        rows: ranking().map((c, i) => ({ pos: i + 1, name: c.name, color: c.me ? hooks.carColor() : c.color, me: !!c.me, time: c.finished ? c.ft : null })),
+        rows: ranking().map((c, i) => ({ pos: i + 1, name: c.name, color: c.me ? hooks.livery().base : c.livery.base, me: !!c.me, time: c.finished ? c.ft : null })),
       });
     }
   }
@@ -449,7 +459,7 @@ export function createGame(cv, hooks) {
     const st = T.S[T.start];
     ctx.fillStyle = '#ffffff'; ctx.fillRect(ox + st.x * sc - 3 * u, oy + st.y * sc - 3 * u, 6 * u, 6 * u);
     for (const c of cars) {
-      ctx.fillStyle = c.me ? hooks.carColor() : c.color;
+      ctx.fillStyle = c.me ? hooks.livery().base : c.livery.base;
       ctx.beginPath(); ctx.arc(ox + c.x * sc, oy + c.y * sc, (c.me ? 4.2 : 3.2) * u, 0, 7); ctx.fill();
       if (c.me) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * u; ctx.stroke(); }
     }
@@ -466,7 +476,7 @@ export function createGame(cv, hooks) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (!T) { ctx.fillStyle = '#2a2f35'; ctx.fillRect(0, 0, cw, ch); return; }
     ctx.fillStyle = T.theme.ground2; ctx.fillRect(0, 0, cw, ch);
-    const z = clamp(cv.clientWidth / 820, 0.55, 1.25) * dpr, vw = cw / z, vh = ch / z;
+    const z = clamp(cv.clientWidth / 700, 0.62, 1.5) * dpr, vw = cw / z, vh = ch / z;
     const cx = vw >= WW ? WW / 2 : clamp(cam.x, vw / 2, WW - vw / 2);
     const cy = vh >= WH ? WH / 2 : clamp(cam.y, vh / 2, WH - vh / 2);
     const x0 = cx - vw / 2, y0 = cy - vh / 2;
@@ -485,10 +495,10 @@ export function createGame(cv, hooks) {
     for (const k of cones) drawCone(ctx, k);
     if (ghost && state !== 'idle') {
       const i = Math.min(Math.floor(raceT * 30), ghost.length / 4 - 1) * 4;
-      if (i >= 0) drawCar(ctx, { x: ghost[i], y: ghost[i + 1], a: ghost[i + 2], h: ghost[i + 3], num: 'F' }, '#ffffff', 0.4);
+      if (i >= 0) drawCar(ctx, { x: ghost[i], y: ghost[i + 1], a: ghost[i + 2], h: ghost[i + 3], num: 'F' }, GHOST_LIVERY, 0.42);
     }
-    const col = hooks.carColor();
-    for (const c of cars) if (c.h <= 8) drawCar(ctx, c, c.me ? col : c.color);
+    const myLiv = hooks.livery();
+    for (const c of cars) if (c.h <= 8) drawCar(ctx, c, c.me ? myLiv : c.livery);
     for (const p of parts) {
       const a = Math.max(0, p.life / p.max);
       ctx.globalAlpha = a * 0.85; ctx.fillStyle = p.col;
@@ -496,7 +506,7 @@ export function createGame(cv, hooks) {
     }
     ctx.globalAlpha = 1;
     blit(layers.t, x0, y0, vw, vh);
-    for (const c of cars) if (c.h > 8) drawCar(ctx, c, c.me ? col : c.color);
+    for (const c of cars) if (c.h > 8) drawCar(ctx, c, c.me ? myLiv : c.livery);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const u = dpr * clamp(cv.clientWidth / 760, 0.62, 1.1);

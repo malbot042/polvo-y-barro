@@ -1,5 +1,5 @@
 // Geometría del trazado, notas del copiloto y dibujo de capas estáticas.
-import { WW, WH, SP, clamp, lerp, wrapA, rng, hashStr, shade } from './util.js';
+import { WW, WH, SP, clamp, lerp, wrapA, rng, hashStr } from './util.js';
 import { SURF, ROAD_SURFACES, THEME, OBJ, DEFAULT_W } from './config.js';
 
 const CELL = 80;
@@ -525,34 +525,5 @@ export function drawNitro(c, p, time) {
   c.fillStyle = '#c99a00'; c.fillRect(-6, 4, 12, 2);
   c.fillStyle = '#1d2630'; c.font = 'italic 800 10px Saira, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillText('N', 0, -1);
-  c.restore();
-}
-
-export function drawCar(c, car, col, alpha = 1) {
-  const h = car.h || 0, sc = 1 + h * 0.014;
-  c.save();
-  c.globalAlpha = alpha * 0.9;
-  c.translate(car.x + 3 + h * 0.6, car.y + 4 + h * 0.8); c.rotate(car.a);
-  c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.roundRect(-13, -7.5, 26, 15, 4); c.fill();
-  c.restore();
-
-  c.save(); c.globalAlpha = alpha;
-  c.translate(car.x, car.y); c.rotate(car.a); c.scale(sc, sc);
-  c.fillStyle = '#15171a';
-  c.fillRect(-10, -8.5, 7, 3.5); c.fillRect(-10, 5, 7, 3.5);
-  for (const y of [-6.75, 6.75]) {
-    c.save(); c.translate(7.5, y); c.rotate((car.steer || 0) * 0.45); c.fillRect(-3.5, -1.75, 7, 3.5); c.restore();
-  }
-  c.fillStyle = col; c.beginPath(); c.roundRect(-13, -7, 26, 14, 4); c.fill();
-  c.fillStyle = 'rgba(255,255,255,.9)'; c.fillRect(-13, -2.6, 26, 1.6); c.fillRect(-13, 1, 26, 1.6);
-  c.fillStyle = '#1f2b38';
-  c.beginPath(); c.moveTo(3, -5.5); c.lineTo(7, -4.5); c.lineTo(7, 4.5); c.lineTo(3, 5.5); c.closePath(); c.fill();
-  c.fillRect(-9, -4.5, 2.2, 9);
-  c.fillStyle = shade(col, 0.82); c.beginPath(); c.roundRect(-7, -5.5, 10, 11, 2); c.fill();
-  c.fillStyle = '#fff'; c.beginPath(); c.arc(-2, 0, 3.4, 0, 7); c.fill();
-  c.fillStyle = '#15171a'; c.font = '700 5px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(car.num || '1', -2, 0.3);
-  c.fillStyle = '#fff6c8'; c.fillRect(11.5, -5.5, 1.6, 2.4); c.fillRect(11.5, 3.1, 1.6, 2.4);
-  c.fillStyle = car.brk ? '#ff3b30' : '#7a1d18'; c.fillRect(-13, -5.5, 1.4, 2.4); c.fillRect(-13, 3.1, 1.4, 2.4);
   c.restore();
 }
