@@ -491,7 +491,7 @@ export function createGame(cv, hooks) {
   }
 
   function drawMini(u) {
-    const mw = 150 * u, mh = 96 * u, pad = 10 * u, x = cv.width - mw - pad, y = cv.height - mh - pad;
+    const mw = 150 * u, mh = 96 * u, pad = 10 * u, x = cv.width - mw - pad, y = pad;
     ctx.fillStyle = 'rgba(10,16,22,.6)'; ctx.beginPath(); ctx.roundRect(x, y, mw, mh, 8 * u); ctx.fill();
     const b = T.bounds, sc = Math.min((mw - 18 * u) / b.w, (mh - 18 * u) / b.h);
     const ox = x + mw / 2 - (b.x + b.w / 2) * sc, oy = y + mh / 2 - (b.y + b.h / 2) * sc;

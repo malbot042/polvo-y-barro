@@ -29,6 +29,7 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 | Nitro | Shift o N | N2O |
 | Empezar | Enter | Empezar |
 | Silenciar | M | Sonido |
+| Pantalla completa | F (Esc para salir) | botón del marcador |
 
 ### Modos
 

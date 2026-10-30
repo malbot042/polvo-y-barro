@@ -149,6 +149,8 @@ const typing = (e) => /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName
 window.addEventListener('keydown', (e) => {
   if ($('pane-play').hidden || typing(e)) return;
   if (e.code === 'Enter' && game.state === 'idle' && !ovl.hidden && $('o-go')) { e.preventDefault(); start(); return; }
+  if (e.code === 'KeyF') { toggleFull(); return; }
+  if (e.code === 'Escape' && isFull() && !document.fullscreenElement && !document.webkitFullscreenElement) { exitFull(); return; }
   if (e.code === 'KeyM') { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); return; }
   const k = KMAP[e.code]; if (!k) return;
   e.preventDefault(); game.keys[k] = 1;
@@ -221,7 +223,43 @@ const editor = createEditor($('ecv'), {
 });
 
 // ---------- Pestañas ----------
+// ---------- Pantalla completa ----------
+// Usa la API nativa si existe; si no (Safari en iPhone) o la rechaza, el juego ocupa toda la ventana.
+const gameEl = document.querySelector('.game');
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+const isFull = () => gameEl.classList.contains('full');
+function syncFs() {
+  const on = isFull();
+  $('fs').setAttribute('aria-label', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+  $('fs').title = on ? 'Salir de pantalla completa (F)' : 'Pantalla completa (F)';
+  document.documentElement.classList.toggle('noscroll', on);
+  requestAnimationFrame(() => game.resize());
+}
+async function enterFull() {
+  audio.unlock();
+  gameEl.classList.add('full');
+  syncFs();
+  try {
+    if (gameEl.requestFullscreen) await gameEl.requestFullscreen({ navigationUI: 'hide' });
+    else if (gameEl.webkitRequestFullscreen) gameEl.webkitRequestFullscreen();
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+  } catch (_) { /* sin API nativa: se queda a ventana completa */ }
+}
+function exitFull() {
+  if (fsElement()) {
+    try { const p = (document.exitFullscreen || document.webkitExitFullscreen).call(document); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+  }
+  gameEl.classList.remove('full');
+  syncFs();
+}
+function toggleFull() { if (isFull()) exitFull(); else enterFull(); }
+$('fs').addEventListener('click', (e) => { e.currentTarget.blur(); toggleFull(); });
+['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => {
+  if (!fsElement() && isFull()) { gameEl.classList.remove('full'); syncFs(); }
+}));
+
 function showTab(t) {
+  if (t !== 'play' && isFull()) exitFull();
   $('pane-play').hidden = t !== 'play';
   $('pane-edit').hidden = t !== 'edit';
   $('t-play').setAttribute('aria-selected', t === 'play');
@@ -296,4 +334,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Acceso desde la consola del navegador para depurar: __pyb.game.cars, __pyb.editor.def…
-window.__pyb = { game, editor, audio };
+window.__pyb = { game, editor, audio, toggleFull };

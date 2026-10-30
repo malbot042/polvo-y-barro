@@ -107,6 +107,33 @@ select, input[type="text"], input[type="number"], textarea {
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .row > .fld { flex: 1 1 120px; }
 
+/* Pantalla completa */
+.fsbtn {
+  margin-left: auto; align-self: center; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.2); border-radius: 9px; color: var(--hud-ink);
+}
+.fsbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.fsbtn .fs-off, .game.full .fsbtn .fs-on { display: none; }
+.game.full .fsbtn .fs-off { display: block; }
+.game.full {
+  position: fixed; inset: 0; z-index: 100; border-radius: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+.game.full .stage { flex: 1; min-height: 0; }
+.game.full #cv { height: 100%; aspect-ratio: auto; max-height: none; }
+.game:fullscreen { width: 100%; height: 100%; }
+.game::backdrop { background: #000; }
+html.noscroll, html.noscroll body { overflow: hidden; }
+.game.full .keys { display: none; }
+.game.full .controls {
+  position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; background: transparent;
+  padding: 10px max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+}
+.game.full .pad { pointer-events: auto; background: rgba(10,16,22,.42); border-color: rgba(255,255,255,.28); }
+.game.full .pad.gas { background: var(--accent); opacity: .9; }
+.game.full .hud { padding-block: 4px; }
+.game.full .hud b { font-size: 20px; }
+
 /* Selector de coche */
 .carpick { display: flex; align-items: center; gap: 8px; }
 #p-car-prev { width: 64px; height: 36px; flex: none; }
