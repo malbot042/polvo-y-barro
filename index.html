@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Polvo y Barro</title>
+<meta name="description" content="Juego de rally y off-road en 2D para el navegador, con editor de circuitos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Saira:ital,wdth,wght@0,50..125,100..900;1,50..125,100..900&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!--app-->
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Polvo <span class="y">y</span> Barro</h1>
+      <p class="tagline">Rally y off-road en vista cenital, para jugar en el navegador. Corre contra el reloj o contra tres rivales, y diseña tus propios circuitos.</p>
+    </div>
+    <div class="pal" role="group" aria-label="Paleta de colores">
+      <span class="eyebrow">Paleta</span>
+      <button type="button" data-pal="azul" aria-pressed="true"><i style="--sa:#13283b;--sb:#e4572e"></i>Azul y naranja</button>
+      <button type="button" data-pal="bosque" aria-pressed="false"><i style="--sa:#17301f;--sb:#e2a400"></i>Bosque</button>
+      <button type="button" data-pal="noche" aria-pressed="false"><i style="--sa:#1d1b28;--sb:#5ec8e5"></i>Noche</button>
+    </div>
+  </header>
+
+  <div class="app">
+    <div class="apptabs" role="tablist">
+      <button type="button" role="tab" id="t-play" aria-selected="true" aria-controls="pane-play">Jugar</button>
+      <button type="button" role="tab" id="t-edit" aria-selected="false" aria-controls="pane-edit">Editor de circuitos</button>
+    </div>
+
+    <div id="pane-play" class="pane" role="tabpanel" aria-labelledby="t-play">
+      <div class="setup">
+        <label class="fld">Circuito<select id="p-track"></select></label>
+        <div class="fld">Modo
+          <div class="seg" role="group" aria-label="Modo de juego">
+            <button type="button" data-mode="rally" aria-pressed="true">Rally</button>
+            <button type="button" data-mode="carrera" aria-pressed="false">Carrera</button>
+          </div>
+        </div>
+        <button type="button" class="btn ghost" id="p-restart">Reiniciar</button>
+      </div>
+      <div class="game">
+        <div class="hud">
+          <div><small id="h-al">Vuelta</small><b id="h-a">1/3</b></div>
+          <div><small id="h-bl">Récord</small><b id="h-b">—</b></div>
+          <div><small>Tiempo</small><b id="h-time">0:00.00</b></div>
+          <div><small>km/h</small><b id="h-speed">0</b></div>
+          <div><small>Nitro</small><b id="h-nitro">◆◆◇</b></div>
+        </div>
+        <div class="stage">
+          <canvas id="cv" aria-label="Pista de carreras"></canvas>
+          <div class="ovl" id="ovl"></div>
+        </div>
+        <div class="controls">
+          <div class="grp left">
+            <button type="button" class="pad" data-k="l" aria-label="Girar a la izquierda">◀</button>
+            <button type="button" class="pad" data-k="r" aria-label="Girar a la derecha">▶</button>
+          </div>
+          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Shift</kbd> nitro · <kbd>Enter</kbd> empezar</span>
+          <div class="grp right">
+            <button type="button" class="pad" data-k="hb" aria-label="Freno de mano">Mano</button>
+            <button type="button" class="pad" data-k="n" aria-label="Nitro">N2O</button>
+            <button type="button" class="pad" data-k="b" aria-label="Freno">Freno</button>
+            <button type="button" class="pad gas" data-k="t" aria-label="Acelerar">Gas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pane-edit" class="pane" role="tabpanel" aria-labelledby="t-edit" hidden>
+      <div class="tools" role="toolbar" aria-label="Herramientas">
+        <button type="button" class="tool" data-tool="trazo"><i style="--sw:#ffffff;border:1px solid #13283b"></i>Trazado</button>
+        <button type="button" class="tool" data-tool="barro"><i style="--sw:#5b3c22"></i>Barro</button>
+        <button type="button" class="tool" data-tool="agua"><i style="--sw:#4f7fa3"></i>Agua</button>
+        <button type="button" class="tool" data-tool="rampa"><i style="--sw:#d2bb93"></i>Rampa</button>
+        <button type="button" class="tool" data-tool="nitro"><i style="--sw:#ffd23f"></i>Nitro</button>
+        <button type="button" class="tool" data-tool="arbol"><i style="--sw:#3f6f2f"></i>Árbol</button>
+        <button type="button" class="tool" data-tool="roca"><i style="--sw:#7d7062"></i>Roca</button>
+        <button type="button" class="tool" data-tool="paja"><i style="--sw:#d4b25a"></i>Paja</button>
+        <button type="button" class="tool" data-tool="cono"><i style="--sw:#e8541a"></i>Cono</button>
+        <button type="button" class="tool" data-tool="borrar"><i style="--sw:#c93a3a"></i>Borrar</button>
+      </div>
+      <div class="edgrid">
+        <div class="edstage">
+          <canvas id="ecv" aria-label="Mapa del editor"></canvas>
+          <p class="edstat" id="e-stat"></p>
+          <p class="hint" id="e-hint" aria-live="polite"></p>
+        </div>
+        <aside class="edside">
+          <div class="box">
+            <h4>Circuito</h4>
+            <label class="fld">Nombre<input type="text" id="e-name" maxlength="40"></label>
+            <div class="row">
+              <label class="fld">Tipo
+                <select id="e-type"><option value="circuito">Circuito (vueltas)</option><option value="tramo">Tramo (salida → meta)</option></select>
+              </label>
+              <label class="fld" style="flex:0 0 76px">Vueltas<input type="number" id="e-laps" min="1" max="9"></label>
+            </div>
+            <label class="fld">Entorno
+              <select id="e-theme"><option value="pradera">Pradera</option><option value="desierto">Desierto</option><option value="nieve">Montaña nevada</option></select>
+            </label>
+          </div>
+
+          <div class="box" id="e-point" hidden>
+            <h4><span id="e-point-title">Punto</span><small id="e-point-sub"></small></h4>
+            <span class="sub">Superficie</span>
+            <div class="row">
+              <button type="button" class="sbtn" data-surf="asfalto">Asfalto</button>
+              <button type="button" class="sbtn" data-surf="tierra">Tierra</button>
+              <button type="button" class="sbtn" data-surf="nieve">Nieve</button>
+            </div>
+            <span class="sub">Ancho</span>
+            <div class="row">
+              <button type="button" class="sbtn" data-width="estrecho">Estrecho</button>
+              <button type="button" class="sbtn" data-width="normal">Normal</button>
+              <button type="button" class="sbtn" data-width="ancho">Ancho</button>
+            </div>
+            <div class="row">
+              <button type="button" class="sbtn" id="e-all">Aplicar a todo el trazado</button>
+              <button type="button" class="sbtn" id="e-delpt">Quitar punto</button>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="row">
+              <button type="button" class="btn" id="e-test">Probar</button>
+              <button type="button" class="btn ghost" id="e-save">Guardar</button>
+            </div>
+            <div class="row">
+              <button type="button" class="sbtn" id="e-undo">Deshacer</button>
+              <button type="button" class="sbtn" id="e-new">Empezar de cero</button>
+            </div>
+            <select id="e-load" aria-label="Abrir un circuito"></select>
+            <details>
+              <summary>Exportar o importar</summary>
+              <div class="box" style="border:0;padding:10px 0 0">
+                <textarea id="e-json" spellcheck="false" aria-label="Circuito en formato texto" placeholder="Pulsa Exportar, o pega aquí un circuito y pulsa Importar"></textarea>
+                <div class="row">
+                  <button type="button" class="sbtn" id="e-export">Exportar</button>
+                  <button type="button" class="sbtn" id="e-copy">Copiar</button>
+                  <button type="button" class="sbtn" id="e-import">Importar</button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <section class="about">
+    <span class="eyebrow">La propuesta</span>
+    <h2>Rally de recreativa con el caos del off-road</h2>
+    <p>La cámara sigue a tu coche desde arriba por circuitos más grandes que la pantalla, como en los rallies de recreativa. Del off-road clásico vienen los saltos, el nitro, los empujones y los circuitos cerrados con cuatro coches.</p>
+    <div class="cols">
+      <div class="sheet">
+        <h3>Rally</h3>
+        <p>Solo contra el reloj. El copiloto canta la curva que viene, los parciales salen en verde o rojo frente a tu mejor tiempo y un fantasma repite tu mejor pasada.</p>
+        <span class="note-demo">IZQ <b>3</b> › DER <b>5</b> larga</span>
+      </div>
+      <div class="sheet">
+        <h3>Carrera</h3>
+        <p>Cuatro coches en circuito cerrado o en tramo. Los rivales frenan antes de las curvas, esquivan obstáculos, usan nitro en las rectas y se recuperan si se atascan.</p>
+      </div>
+      <div class="sheet">
+        <h3>Superficies</h3>
+        <p>Cada tramo del trazado es asfalto, tierra o nieve, y encima se pueden poner barro y charcos. Salirse cuesta: hierba, arena o nieve honda, y árboles con los que chocar.</p>
+      </div>
+      <div class="sheet">
+        <h3>Editor</h3>
+        <p>El trazado se dibuja con puntos. Cada tramo tiene su superficie y su ancho, y sobre el mapa se colocan rampas, latas, pacas y conos. Se prueba al momento, se guarda en el navegador y se comparte como texto.</p>
+      </div>
+    </div>
+
+    <div class="tbl">
+      <table class="surf">
+        <thead><tr><th>Superficie</th><th>Agarre</th><th>Velocidad punta</th><th>Dónde</th></tr></thead>
+        <tbody id="surf-body"></tbody>
+      </table>
+    </div>
+
+    <h2>Hoja de ruta</h2>
+    <div class="cols">
+      <div class="sheet">
+        <span class="when">Fase 1 · este prototipo</span>
+        <h3>Base jugable</h3>
+        <ul><li>Física con derrape y freno de mano</li><li>Cinco superficies, saltos y nitro</li><li>Notas del copiloto, parciales y fantasma</li><li>Tres rivales con IA</li><li>Editor con guardado e intercambio</li></ul>
+      </div>
+      <div class="sheet">
+        <span class="when">Fase 2</span>
+        <h3>Juego completo</h3>
+        <ul><li>Sonido de motor y voz del copiloto</li><li>Campeonato de varias pruebas</li><li>Garaje con mejoras y coches distintos</li><li>Daños, lluvia y conducción de noche</li><li>Puentes y cruces a distinto nivel</li></ul>
+      </div>
+      <div class="sheet">
+        <span class="when">Fase 3</span>
+        <h3>Compartir y competir</h3>
+        <ul><li>Circuitos compartidos por enlace</li><li>Pantalla partida con mandos</li><li>Tablas de récords por circuito</li><li>Instalable en el móvil sin conexión</li></ul>
+      </div>
+    </div>
+  </section>
+  <footer>Código fuente en <a href="https://github.com/malbot042/polvo-y-barro" target="_blank" rel="noopener">github.com/malbot042/polvo-y-barro</a>. Los récords y circuitos guardados se quedan en este navegador.</footer>
+</div>
+<!--/app-->
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
