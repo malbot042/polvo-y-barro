@@ -6,6 +6,7 @@ import { resolveDef, normalizeDef } from './track.js';
 import { createGame } from './game.js';
 import { createEditor } from './editor.js';
 import { LIVERIES, drawCarPreview } from './car.js';
+import { createAudio } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const BUILTIN = BUILTIN_RAW.map((d) => normalizeDef(resolveDef(d)));
@@ -37,10 +38,28 @@ function setPal(p) {
 }
 document.querySelectorAll('button[data-pal]').forEach((b) => b.addEventListener('click', () => setPal(b.dataset.pal)));
 
+// ---------- Sonido ----------
+const audio = createAudio();
+audio.setMuted(store.get('pyb-mute', false));
+audio.setVoice(store.get('pyb-voice', true));
+function syncSoundUI() {
+  $('snd').setAttribute('aria-pressed', !audio.muted);
+  $('snd').textContent = audio.muted ? 'Sonido no' : 'Sonido sí';
+  $('voz').setAttribute('aria-pressed', audio.voice);
+  $('voz').textContent = audio.voice ? 'Copiloto sí' : 'Copiloto no';
+}
+$('snd').addEventListener('click', () => { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); });
+$('voz').addEventListener('click', () => { audio.unlock(); audio.setVoice(!audio.voice); store.set('pyb-voice', audio.voice); syncSoundUI(); });
+syncSoundUI();
+// el navegador solo deja sonar audio tras un gesto del usuario
+['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => audio.unlock(), { capture: true }));
+document.addEventListener('visibilitychange', () => (document.hidden ? audio.suspend() : audio.resume()));
+
 // ---------- Juego ----------
 const ovl = $('ovl');
 const game = createGame($('cv'), {
   livery: playerLivery,
+  sfx: (name, d) => audio.sfx(name, d),
   onResults: showResults,
 });
 
@@ -64,6 +83,7 @@ function showIdle(i) {
 }
 
 function start() {
+  audio.unlock();
   ovl.hidden = true;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   game.start();
@@ -129,6 +149,7 @@ const typing = (e) => /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName
 window.addEventListener('keydown', (e) => {
   if ($('pane-play').hidden || typing(e)) return;
   if (e.code === 'Enter' && game.state === 'idle' && !ovl.hidden && $('o-go')) { e.preventDefault(); start(); return; }
+  if (e.code === 'KeyM') { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); return; }
   const k = KMAP[e.code]; if (!k) return;
   e.preventDefault(); game.keys[k] = 1;
 });
@@ -267,11 +288,12 @@ function frame(now) {
     while (acc >= DT) { game.tick(DT); acc -= DT; }
     game.render(now);
     updateHud();
-  } else acc = 0;
+    audio.update(game.audioState());
+  } else { acc = 0; audio.update(null); }
   if (!$('pane-edit').hidden) editor.update();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Acceso desde la consola del navegador para depurar: __pyb.game.cars, __pyb.editor.def…
-window.__pyb = { game, editor };
+window.__pyb = { game, editor, audio };

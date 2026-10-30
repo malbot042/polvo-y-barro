@@ -28,11 +28,24 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 | Freno de mano (derrape) | Espacio | Mano |
 | Nitro | Shift o N | N2O |
 | Empezar | Enter | Empezar |
+| Silenciar | M | Sonido |
 
 ### Modos
 
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
+
+### Sonido
+
+Todo el audio se genera en el navegador con Web Audio, sin archivos:
+
+- **Motor** con caja de seis marchas: sube de vueltas, cambia de marcha con un chasquido, petardea al soltar el gas y se revoluciona en el aire, al patinar o con el freno de mano. Durante la cuenta atrás puedes acelerar en parado.
+- **Rodadura** distinta en asfalto, grava, nieve, barro, agua, hierba y arena, más un chirrido de neumáticos al derrapar sobre asfalto y viento con la velocidad.
+- **Rivales** con su propio motor, que suena según la distancia y a izquierda o derecha.
+- **Efectos**: golpes, conos, saltos y aterrizajes, nitro, latas, salpicaduras, cuenta atrás, parciales, vueltas, meta y récord.
+- **Copiloto por voz**: canta las notas en español (por ejemplo «izquierda tres y derecha cuatro larga») con la voz del sistema. Si el navegador no tiene voz en español, no suena.
+
+`M` silencia el sonido. Los botones *Sonido* y *Copiloto* recuerdan la elección.
 
 ### Coches
 
@@ -71,6 +84,7 @@ js/tracks.js        circuitos incluidos
 js/track.js         geometría del trazado, notas del copiloto y dibujo de la pista
 js/car.js           coche de rally: sprite, decoraciones y suciedad
 js/game.js          simulación, IA, cámara y HUD sobre el canvas
+js/audio.js         sonido sintetizado y voz del copiloto
 js/editor.js        editor de circuitos
 js/main.js          interfaz, pestañas y bucle principal
 tools/build-single.mjs  empaqueta todo en dist/polvo-y-barro.html (un solo archivo)

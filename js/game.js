@@ -47,8 +47,16 @@ export function createGame(cv, hooks) {
   const cam = { x: WW / 2, y: WH / 2 };
   let dpr = 1;
   const keys = { t: 0, b: 0, l: 0, r: 0, n: 0, hb: 0 };
+  let lastCount = 0, lastCall = -1, lastChain = -1;
 
   const player = () => cars.find((c) => c.me);
+  const sfx = (name, d) => { if (hooks.sfx) hooks.sfx(name, d || {}); };
+  // volumen de un efecto según la distancia al jugador
+  function atten(c) {
+    if (c.me) return 1;
+    const me = player();
+    return me ? clamp(1 - Math.hypot(c.x - me.x, c.y - me.y) / 520, 0, 1) * 0.7 : 0;
+  }
   const progress = (c) => (T.loop ? (c.idx - T.start + T.n) % T.n : c.idx);
   function score(c) {
     if (c.finished) return 1e9 - c.order;
@@ -71,7 +79,7 @@ export function createGame(cv, hooks) {
   }
 
   function reset() {
-    parts = []; skids = []; raceT = 0; doneT = 0; shown = false; finCount = 0; flash = null; rec = []; recT = 0; state = 'idle';
+    parts = []; skids = []; raceT = 0; doneT = 0; shown = false; finCount = 0; flash = null; rec = []; recT = 0; state = 'idle'; lastCount = 0; lastCall = -1; lastChain = -1;
     if (!T) { cars = []; return; }
     cones = T.cones.map((c) => ({ x: c.x, y: c.y, vx: 0, vy: 0, a: 0, va: 0 }));
     nitros = T.nitros.map((p) => ({ x: p.x, y: p.y, t: 0 }));
@@ -155,15 +163,18 @@ export function createGame(cv, hooks) {
     if (!c.me) return;
     if (mode === 'rally') {
       const b = bestFor(), k = c.splits.length - 1;
+      const ending = T.loop ? c.lap >= T.laps : isLap;
       if (b && b.splits && b.splits[k] != null) {
         const d = raceT - b.splits[k];
         flash = { txt: (d < 0 ? '−' : '+') + Math.abs(d).toFixed(2), col: d < 0 ? '#4cd07d' : '#ff5a5a', t: 2.2 };
-      } else flash = { txt: fmtTime(raceT), col: '#ffffff', t: 2 };
+        if (!ending) sfx('split', { good: d < 0 });
+      } else { flash = { txt: fmtTime(raceT), col: '#ffffff', t: 2 }; if (!ending) sfx('split', { good: null }); }
     } else if (isLap && T.loop && c.lap < T.laps) {
       flash = { txt: c.lap === T.laps - 1 ? 'ÚLTIMA VUELTA' : `VUELTA ${c.lap + 1}`, col: '#ffffff', t: 2 };
+      sfx('lap', { last: c.lap === T.laps - 1 });
     }
   }
-  function finish(c) { if (c.finished) return; c.finished = true; c.ft = raceT; c.order = ++finCount; }
+  function finish(c) { if (c.finished) return; c.finished = true; c.ft = raceT; c.order = ++finCount; if (c.me) sfx('finish'); }
 
   function updateCar(c, dt) {
     const S = T.S;
@@ -181,8 +192,10 @@ export function createGame(cv, hooks) {
       const dx = c.x - p.x, dy = c.y - p.y;
       if (dx * dx + dy * dy < (p.r * 0.85) ** 2) { sf = SURF[p.k]; sk = p.k; }
     }
-    c.sk = sk;
     const sp0 = Math.hypot(c.vx, c.vy);
+    if (sk !== c.sk && (sk === 'agua' || sk === 'barro') && sp0 > 50 && c.air <= 0) sfx(sk === 'agua' ? 'splash' : 'mud', { vol: atten(c) * Math.min(1, sp0 / 250) });
+    c.sk = sk;
+    c.thr = inp.t; c.hb = inp.hb;
     if (c.air <= 0 && sp0 > 40) {
       const rate = { barro: 0.14, agua: 0.06, off: 0.035, verge: 0.025, tierra: 0.014, nieve: 0.02 }[sk] || 0;
       if (rate) {
@@ -192,7 +205,7 @@ export function createGame(cv, hooks) {
       }
     }
 
-    if (inp.n && c.nitro > 0 && c.nitroT <= 0 && c.air <= 0) { c.nitro--; c.nitroT = 1.4; }
+    if (inp.n && c.nitro > 0 && c.nitroT <= 0 && c.air <= 0) { c.nitro--; c.nitroT = 1.4; sfx('nitro', { vol: atten(c) }); }
     if (c.nitroT > 0) c.nitroT -= dt;
     const boost = c.nitroT > 0;
     c.brk = inp.b;
@@ -204,6 +217,7 @@ export function createGame(cv, hooks) {
       c.x += c.vx * dt; c.y += c.vy * dt;
       if (c.air <= 0) {
         c.h = 0;
+        sfx('land', { vol: atten(c) * Math.min(1, c.airH / 30) });
         const dust = sk === 'off' || sk === 'verge' ? T.theme.off.dust : sf.dust;
         for (let k = 0; k < 10; k++) emit(c.x, c.y, dust, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90, 3.5, 0.6, 1.4);
       }
@@ -254,13 +268,14 @@ export function createGame(cv, hooks) {
           c.x = o.x + nx * rr; c.y = o.y + ny * rr;
           const vn = c.vx * nx + c.vy * ny;
           if (vn < 0) {
+            if (vn < -50) sfx('hit', { vol: atten(c) * Math.min(1, -vn / 260) });
             c.vx -= 1.6 * vn * nx; c.vy -= 1.6 * vn * ny; c.vx *= 0.6; c.vy *= 0.6;
             if (vn < -60) for (let k = 0; k < 6; k++) emit(c.x - nx * 9, c.y - ny * 9, '#e8e2d0', (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 2, 0.4, 0.5);
           }
         }
       }
     }
-    for (const p of nitros) if (p.t <= 0 && (c.x - p.x) ** 2 + (c.y - p.y) ** 2 < 324) { p.t = 8; c.nitro = Math.min(3, c.nitro + 1); }
+    for (const p of nitros) if (p.t <= 0 && (c.x - p.x) ** 2 + (c.y - p.y) ** 2 < 324) { p.t = 8; c.nitro = Math.min(3, c.nitro + 1); if (c.me) sfx('pickup'); }
 
     // efectos: marcas y polvo
     const sp = Math.hypot(c.vx, c.vy);
@@ -309,7 +324,7 @@ export function createGame(cv, hooks) {
       const nx = dx / d, ny = dy / d, o = (min - d) / 2;
       a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-      if (rv < 0) { const imp = -rv * 0.8; a.vx -= nx * imp * 0.5; a.vy -= ny * imp * 0.5; b.vx += nx * imp * 0.5; b.vy += ny * imp * 0.5; }
+      if (rv < 0) { if (rv < -40) sfx('hit', { vol: Math.max(atten(a), atten(b)) * Math.min(1, -rv / 260) * 0.8 }); const imp = -rv * 0.8; a.vx -= nx * imp * 0.5; a.vy -= ny * imp * 0.5; b.vx += nx * imp * 0.5; b.vy += ny * imp * 0.5; }
     }
   }
 
@@ -321,17 +336,24 @@ export function createGame(cv, hooks) {
         const dx = k.x - c.x, dy = k.y - c.y, d2 = dx * dx + dy * dy;
         if (d2 < 256) {
           const d = Math.sqrt(d2) || 1;
+          if (!(k.st > 0)) { k.st = 0.35; sfx('cone', { vol: atten(c) }); }
           k.vx = c.vx * 1.1 + (dx / d) * 60; k.vy = c.vy * 1.1 + (dy / d) * 60; k.va = (Math.random() - 0.5) * 20;
           c.vx *= 0.96; c.vy *= 0.96;
         }
       }
+      if (k.st > 0) k.st -= dt;
       k.x += k.vx * dt; k.y += k.vy * dt; k.vx *= f; k.vy *= f; k.a += k.va * dt; k.va *= f;
     }
   }
 
   function step(dt) {
     if (!T || !cars.length) return;
-    if (state === 'count') { cd -= dt; if (cd <= 0) state = 'race'; }
+    if (state === 'count') {
+      cd -= dt;
+      const n = Math.ceil(cd);
+      if (n !== lastCount && n > 0) { lastCount = n; sfx('count'); }
+      if (cd <= 0) { state = 'race'; sfx('go'); }
+    }
     if (state === 'race' || state === 'done') raceT += dt;
     for (const c of cars) updateCar(c, dt);
     collideCars();
@@ -343,6 +365,7 @@ export function createGame(cv, hooks) {
       if (p.life <= 0) parts.splice(i, 1);
     }
     const me = player();
+    if (state === 'race' && !me.finished) callNotes(me);
     if (state === 'race' && !me.finished) {
       recT += dt;
       while (recT >= 1 / 30) { recT -= 1 / 30; rec.push(Math.round(me.x), Math.round(me.y), Math.round(me.a * 100) / 100, Math.round(me.h)); }
@@ -357,11 +380,30 @@ export function createGame(cv, hooks) {
     }
   }
 
+  // Copiloto: canta la próxima nota al entrar en distancia y encadena la siguiente si va pegada
+  function callNotes(me) {
+    const N = T.notes;
+    if (!N.length) return;
+    let bi = -1, bd = Infinity;
+    for (let i = 0; i < N.length; i++) {
+      const d = T.loop ? (N[i].i - me.idx + T.n) % T.n : N[i].i - me.idx;
+      if (d > 2 && d < bd) { bd = d; bi = i; }
+    }
+    if (bi < 0 || bd > 62 || bi === lastCall || bi === lastChain) return;
+    const j = T.loop ? (bi + 1) % N.length : bi + 1;
+    const nx = N[j] && j !== bi ? N[j] : null;
+    const gap = nx ? (T.loop ? (nx.i - N[bi].i + T.n) % T.n : nx.i - N[bi].i) : Infinity;
+    const chain = nx && gap < 22;
+    sfx('note', { no: N[bi], next: chain ? nx : null });
+    lastCall = bi; lastChain = chain ? j : -1;
+  }
+
   function results() {
     const me = player();
     if (mode === 'rally') {
       const b = bestFor(), isRec = !b || me.ft < b.t;
       if (isRec) saveBest({ t: me.ft, splits: me.splits, ghost: rec });
+      if (isRec && b) sfx('record');
       hooks.onResults({
         mode, track: def.name, time: me.ft, best: b ? b.t : null, record: isRec, splits: me.splits,
         prevSplits: b ? b.splits : null, lapEvery: T.loop ? T.cps.length + 1 : 0,
@@ -537,7 +579,22 @@ export function createGame(cv, hooks) {
     hud,
     info,
     get state() { return state; },
-    get cars() { return cars; },     // para depurar desde la consola
+    get cars() { return cars; },
+    audioState() {
+      const me = player();
+      if (!T || !me || state === 'idle') return { active: false };
+      return {
+        active: true,
+        count: state === 'count',
+        me: {
+          sp: Math.hypot(me.vx, me.vy), thr: state === 'count' ? keys.t : me.thr, brk: me.brk, hb: me.hb,
+          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, boost: me.nitroT > 0, offKind: T.def.theme,
+        },
+        rivals: cars.filter((c) => !c.me).map((c) => ({
+          dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr,
+        })),
+      };
+    },     // para depurar desde la consola
     get track() { return T; },
   };
 }
