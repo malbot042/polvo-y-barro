@@ -183,6 +183,7 @@ export function buildTrack(def, layers, opts = {}) {
       if (OBJ[o.k].solid) T.solids.push(d);
     }
   }
+  findBridges(T);
   T.decor = [];
   if (opts.decor !== false) genDecor(T);
   T.notes = buildNotes(T);
@@ -196,6 +197,43 @@ export function buildTrack(def, layers, opts = {}) {
 
   if (layers) renderLayers(T, layers);
   return T;
+}
+
+function segCross(a, b, c, d) {
+  const d1 = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const d2 = (b.x - a.x) * (d.y - a.y) - (b.y - a.y) * (d.x - a.x);
+  const d3 = (d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x);
+  const d4 = (d.x - c.x) * (b.y - c.y) - (d.y - c.y) * (b.x - c.x);
+  return d1 * d2 < 0 && d3 * d4 < 0;
+}
+
+// Cruces del trazado consigo mismo: el paso que llega después va por un puente
+function findBridges(T) {
+  const { S, n, loop } = T, segN = loop ? n : n - 1, found = [];
+  for (const s of S) s.lv = 0;
+  for (let i = 0; i < segN; i++) {
+    const a = S[i], b = S[(i + 1) % n];
+    const cx = Math.floor(a.x / CELL), cy = Math.floor(a.y / CELL);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const arr = T.grid.get((cx + dx) + ',' + (cy + dy));
+      if (!arr) continue;
+      for (const j of arr) {
+        if (j <= i + 30 || j >= segN) continue;
+        if (loop && (i - j + n) % n <= 30) continue;
+        if (!segCross(a, b, S[j], S[(j + 1) % n])) continue;
+        if (found.some((f) => Math.abs(f.i - i) < 12 && Math.abs(f.j - j) < 12)) continue;
+        found.push({ i, j });
+      }
+    }
+  }
+  T.bridges = found.map(({ i, j }) => {
+    const half = Math.ceil((S[i].w / 2 + 40) / SP) + 3;
+    for (let k = j - half; k <= j + half; k++) {
+      const q = loop ? ((k % n) + n) % n : clamp(k, 0, n - 1);
+      S[q].lv = 1;
+    }
+    return { from: j - half, to: j + half, under: i };
+  });
 }
 
 function genDecor(T) {
@@ -236,6 +274,7 @@ function buildNotes(T) {
   }
   if (cur) close(cur);
   for (const r of T.ramps) notes.push({ i: Math.max(0, nearestGlobal(T, r.x, r.y).i - 3), label: 'SALTO' });
+  for (const b of T.bridges) notes.push({ i: ((b.from - 2) % n + n) % n, label: 'PUENTE' });
   for (const p of T.patches) {
     const nn = nearestGlobal(T, p.x, p.y);
     if (nn.d < T.S[nn.i].w / 2 + p.r * 0.6) notes.push({ i: Math.max(0, nn.i - Math.round(p.r / SP)), label: p.k === 'barro' ? 'BARRO' : 'AGUA' });
@@ -290,6 +329,80 @@ function quad(g, a, b, o1, o2) {
   g.closePath(); g.fill();
 }
 
+// Firme, arcén y marcas de las muestras que cumplan sel(muestra)
+function paintRoad(g, T, sel, deck = false) {
+  const th = T.theme, S = T.S, n = T.n, segN = T.loop ? n : n - 1;
+  const segOk = (i) => sel(S[i]) && (T.loop || i < n - 1) && sel(S[(i + 1) % n]);
+  if (deck) {
+    g.fillStyle = '#8c8a84';
+    for (let i = 0; i < segN; i++) if (segOk(i)) { const a = S[i], b = S[(i + 1) % n]; quad(g, a, b, -a.w / 2 - 7, a.w / 2 + 7); }
+  } else {
+    g.fillStyle = th.verge;
+    for (const s of S) if (sel(s)) { g.beginPath(); g.arc(s.x, s.y, s.w / 2 + 9, 0, 7); g.fill(); }
+  }
+  for (let i = 0; i < segN; i++) {
+    if (!segOk(i)) continue;
+    const a = S[i], b = S[(i + 1) % n];
+    g.fillStyle = SURF[a.s].col;
+    quad(g, a, b, -a.w / 2, a.w / 2);
+    if (!deck) { g.beginPath(); g.arc(a.x, a.y, a.w / 2, 0, 7); g.fill(); }
+  }
+  if (!T.loop && !deck && sel(S[n - 1])) { const l = S[n - 1]; g.fillStyle = SURF[l.s].col; g.beginPath(); g.arc(l.x, l.y, l.w / 2, 0, 7); g.fill(); }
+
+  const R = rng(99);
+  for (const s of S) {
+    if (!sel(s)) continue;
+    for (let k = 0; k < 4; k++) {
+      const o = (R() - 0.5) * s.w * 0.92, al = (R() - 0.5) * 8;
+      g.fillStyle = R() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.07)';
+      g.fillRect(s.x + s.nx * o + s.tx * al, s.y + s.ny * o + s.ty * al, 1.5 + R() * 1.5, 1.5 + R() * 1.5);
+    }
+  }
+  strokeAlong(g, T, (q) => sel(q) && q.s === 'tierra', [0.21, -0.21], 'rgba(70,42,20,.22)', 7);
+  strokeAlong(g, T, (q) => sel(q) && q.s === 'nieve', [0.2, -0.2], 'rgba(120,140,170,.32)', 8);
+  for (let i = 0; i < segN; i++) {
+    if (!segOk(i)) continue;
+    const a = S[i], b = S[(i + 1) % n];
+    if (a.s !== 'asfalto') continue;
+    const kerb = Math.abs(a.hd) > 18 && !deck;
+    if (!kerb && ((i >> 1) % 2 === 0)) {
+      g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    }
+    for (const side of [1, -1]) {
+      if (kerb) { g.fillStyle = i % 2 ? '#ece9e4' : '#c8382e'; quad(g, a, b, side * (a.w / 2 - 7), side * (a.w / 2)); }
+      else { g.fillStyle = 'rgba(255,255,255,.8)'; quad(g, a, b, side * (a.w / 2 - 5), side * (a.w / 2 - 3)); }
+    }
+  }
+}
+
+// Cada puente se dibuja en su propio canvas (solo su rectángulo) para pintarlo encima de los coches de abajo
+function renderBridges(T) {
+  const S = T.S, n = T.n;
+  for (const b of T.bridges) {
+    const idx = [];
+    for (let k = b.from; k <= b.to; k++) idx.push(((k % n) + n) % n);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const i of idx) { const s = S[i], r = s.w / 2 + 14; x0 = Math.min(x0, s.x - r); y0 = Math.min(y0, s.y - r); x1 = Math.max(x1, s.x + r); y1 = Math.max(y1, s.y + r); }
+    x0 = Math.floor(x0); y0 = Math.floor(y0);
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(x1 - x0)); cv.height = Math.max(1, Math.ceil(y1 - y0));
+    const g = cv.getContext('2d');
+    g.translate(-x0, -y0);
+    const set = new Set(idx.map((i) => S[i]));
+    paintRoad(g, T, (q) => set.has(q), true);
+    // barandillas (sin los extremos, que son las rampas de acceso)
+    for (const side of [1, -1]) {
+      g.strokeStyle = '#4a4a47'; g.lineWidth = 4; g.lineCap = 'butt';
+      g.beginPath();
+      idx.slice(4, -4).forEach((i, k) => { const s = S[i], o = side * (s.w / 2 + 5); k ? g.lineTo(s.x + s.nx * o, s.y + s.ny * o) : g.moveTo(s.x + s.nx * o, s.y + s.ny * o); });
+      g.stroke();
+      g.strokeStyle = '#d6d3cb'; g.lineWidth = 1.6; g.stroke();
+    }
+    b.cv = cv; b.x = x0; b.y = y0;
+  }
+}
+
 export function renderLayers(T, layers) {
   const g = layers.g.getContext('2d'), t = layers.t.getContext('2d');
   const th = T.theme, S = T.S, n = T.n, segN = T.loop ? n : n - 1;
@@ -299,53 +412,13 @@ export function renderLayers(T, layers) {
   for (const d of T.decor) if (d.k === 'arbusto') drawBush(g, d, th);
   for (const d of T.decor.concat(T.user)) if (OBJ[d.k] && OBJ[d.k].solid) drawShadow(g, d);
 
-  // arcén
-  g.fillStyle = th.verge;
-  for (const s of S) { g.beginPath(); g.arc(s.x, s.y, s.w / 2 + 9, 0, 7); g.fill(); }
-  // firme
-  for (let i = 0; i < segN; i++) {
-    const a = S[i], b = S[(i + 1) % n];
-    g.fillStyle = SURF[a.s].col;
-    g.beginPath();
-    g.moveTo(a.x + (a.nx * a.w) / 2, a.y + (a.ny * a.w) / 2);
-    g.lineTo(b.x + (b.nx * b.w) / 2, b.y + (b.ny * b.w) / 2);
-    g.lineTo(b.x - (b.nx * b.w) / 2, b.y - (b.ny * b.w) / 2);
-    g.lineTo(a.x - (a.nx * a.w) / 2, a.y - (a.ny * a.w) / 2);
-    g.closePath(); g.fill();
-    g.beginPath(); g.arc(a.x, a.y, a.w / 2, 0, 7); g.fill();
-  }
-  if (!T.loop) { const l = S[n - 1]; g.fillStyle = SURF[l.s].col; g.beginPath(); g.arc(l.x, l.y, l.w / 2, 0, 7); g.fill(); }
-
-  // textura del firme
-  const R = rng(99);
-  for (const s of S) {
-    for (let k = 0; k < 4; k++) {
-      const o = (R() - 0.5) * s.w * 0.92, al = (R() - 0.5) * 8;
-      g.fillStyle = R() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.07)';
-      g.fillRect(s.x + s.nx * o + s.tx * al, s.y + s.ny * o + s.ty * al, 1.5 + R() * 1.5, 1.5 + R() * 1.5);
-    }
-  }
-  // roderas
-  strokeAlong(g, T, (s) => s.s === 'tierra', [0.21, -0.21], 'rgba(70,42,20,.22)', 7);
-  strokeAlong(g, T, (s) => s.s === 'nieve', [0.2, -0.2], 'rgba(120,140,170,.32)', 8);
-
-  // asfalto: línea central, bordes y pianos en curva
-  for (let i = 0; i < segN; i++) {
-    const a = S[i], b = S[(i + 1) % n];
-    if (a.s !== 'asfalto') continue;
-    const kerb = Math.abs(a.hd) > 18;
-    if (!kerb && ((i >> 1) % 2 === 0)) {
-      g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2.5;
-      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-    }
-    for (const side of [1, -1]) {
-      if (kerb) {
-        g.fillStyle = i % 2 ? '#ece9e4' : '#c8382e';
-        quad(g, a, b, side * (a.w / 2 - 7), side * (a.w / 2));
-      } else {
-        g.fillStyle = 'rgba(255,255,255,.8)';
-        quad(g, a, b, side * (a.w / 2 - 5), side * (a.w / 2 - 3));
-      }
+  paintRoad(g, T, (q) => !q.lv);
+  // sombra de los puentes sobre el suelo
+  for (const b of T.bridges) {
+    g.fillStyle = 'rgba(0,0,0,.28)';
+    for (let k = b.from + 3; k <= b.to - 3; k++) {
+      const a = S[((k % n) + n) % n], c2 = S[(((k + 1) % n) + n) % n];
+      g.save(); g.translate(11, 13); quad(g, a, c2, -a.w / 2 - 6, a.w / 2 + 6); g.restore();
     }
   }
 
@@ -363,6 +436,7 @@ export function renderLayers(T, layers) {
   for (const i of cpAbs) drawPosts(t, S[i], '#ff7a1a');
   drawPosts(t, S[T.start], '#ffffff');
   if (!T.loop) drawPosts(t, S[T.finish], '#ffffff');
+  renderBridges(T);
 }
 
 function drawChecker(g, s) {

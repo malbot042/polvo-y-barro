@@ -7,7 +7,7 @@ const NUM = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis'];
 
 export function noteText(no) {
   if (!no) return '';
-  if (no.label) return { SALTO: 'salto', BARRO: 'cuidado, barro', AGUA: 'agua' }[no.label] || no.label.toLowerCase();
+  if (no.label) return { SALTO: 'salto', BARRO: 'cuidado, barro', AGUA: 'agua', PUENTE: 'puente' }[no.label] || no.label.toLowerCase();
   const dir = no.dir < 0 ? 'izquierda' : 'derecha';
   if (no.grade === 'H') return `horquilla ${dir}`;
   return `${dir} ${NUM[+no.grade] || no.grade}${no.long ? ' larga' : ''}`;
@@ -15,7 +15,8 @@ export function noteText(no) {
 
 export function createAudio() {
   let ctx = null, master = null, ready = false;
-  let muted = false, voiceOn = true, volume = 0.8;
+  let muted = false, voiceOn = true, volume = 0.8, musicOn = true, musicWanted = false;
+  let rain = null, musicBus = null, seqTimer = null, seqNext = 0, seqStep = 0;
   let noiseBuf = null, gravelBuf = null;
   let eng = null, surf = null, rivals = [];
   let gear = 1, rpm = 0.15, lastThr = 0, lastT = 0, voice = null;
@@ -89,6 +90,63 @@ export function createAudio() {
     surf = { hiss, gravel, wind, slosh, sloshDepth: sl, squeal: sqg, sq };
   }
 
+  function buildRain() {
+    const src = loop(noiseBuf), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), g = gain(0);
+    hp.type = 'highpass'; hp.frequency.value = 1800; lp.type = 'lowpass'; lp.frequency.value = 9000;
+    src.connect(hp).connect(lp).connect(g).connect(master);
+    const src2 = loop(gravelBuf, 0.35), bp = ctx.createBiquadFilter(), g2 = gain(0);
+    bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 0.7;
+    src2.connect(bp).connect(g2).connect(master);
+    rain = { g, g2 };
+  }
+
+  // ---------- Música: secuenciador sencillo (Am – F – C – G), 8 compases ----------
+  const midi = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const BASS = [45, 41, 48, 43];
+  const ARP = [[69, 72, 76, 81], [65, 69, 72, 77], [64, 67, 72, 76], [67, 71, 74, 79]];
+  function inst(t, kind, note) {
+    const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    if (kind === 'kick') {
+      o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.connect(g).connect(musicBus); o.start(t); o.stop(t + 0.3); return;
+    }
+    if (kind === 'snare' || kind === 'hat' || kind === 'open') {
+      const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+      f.type = 'highpass'; f.frequency.value = kind === 'snare' ? 1300 : 7000;
+      const d = kind === 'snare' ? 0.16 : kind === 'open' ? 0.14 : 0.035;
+      g.gain.setValueAtTime(kind === 'snare' ? 0.26 : 0.07, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      s.connect(f).connect(g).connect(musicBus); s.start(t, Math.random()); s.stop(t + d + 0.02);
+      if (kind === 'snare') { o.type = 'triangle'; o.frequency.value = 190; const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.14, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g2).connect(musicBus); o.start(t); o.stop(t + 0.1); }
+      return;
+    }
+    o.type = kind === 'bass' ? 'sawtooth' : 'square';
+    o.frequency.value = midi(note);
+    f.type = 'lowpass'; f.frequency.value = kind === 'bass' ? 650 : 2200;
+    const vol = kind === 'bass' ? 0.16 : 0.045, d = kind === 'bass' ? 0.22 : 0.13;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(f).connect(g).connect(musicBus); o.start(t); o.stop(t + d + 0.02);
+  }
+  function schedule() {
+    if (!ready) return;
+    const STEP = 60 / 118 / 4;
+    while (seqNext < ctx.currentTime + 0.12) {
+      const st = seqStep % 16, bar = Math.floor(seqStep / 16) % 8, ch = bar % 4, t = seqNext;
+      if (st === 0 || st === 8 || st === 10) inst(t, 'kick');
+      if (st === 4 || st === 12) inst(t, 'snare');
+      if (st % 2 === 0) inst(t, st === 14 ? 'open' : 'hat');
+      if ([0, 2, 3, 6, 8, 10, 11, 14].includes(st)) inst(t, 'bass', BASS[ch] + (st === 3 || st === 11 ? 12 : 0));
+      if (bar >= 4) inst(t, 'arp', ARP[ch][st % 4] + (st >= 8 ? 12 : 0));
+      seqNext += STEP; seqStep++;
+    }
+  }
+  function syncMusic() {
+    if (!ready) return;
+    const play = musicOn && musicWanted && !muted;
+    if (play && !seqTimer) { seqNext = ctx.currentTime + 0.05; seqStep = 0; setP(musicBus.gain, 0.5, 0.2); seqTimer = setInterval(schedule, 25); }
+    else if (!play && seqTimer) { clearInterval(seqTimer); seqTimer = null; setP(musicBus.gain, 0, 0.1); }
+  }
+
   function buildRivals(n) {
     for (let i = 0; i < n; i++) {
       const o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = gain(0);
@@ -111,7 +169,8 @@ export function createAudio() {
       master = gain(muted ? 0 : volume);
       master.connect(comp).connect(ctx.destination);
       noiseBuf = makeNoise(2); gravelBuf = makeGravel(1.6);
-      buildEngine(); buildSurface(); buildRivals(3);
+      buildEngine(); buildSurface(); buildRivals(3); buildRain();
+      musicBus = gain(0.5); musicBus.connect(master);
       ready = true;
     } catch (e) { ready = false; }
     return ready;
@@ -172,6 +231,13 @@ export function createAudio() {
       case 'land': burst(0.22, 'lowpass', 260, 0.6 * v); tone(62, 0.22, 'sine', 0.55 * v, 0, 34); break;
       case 'splash': burst(0.5, 'bandpass', 1500, 0.45 * v, 0, 0.8, 500); break;
       case 'mud': burst(0.38, 'lowpass', 450, 0.45 * v, 0, 1.5, 200); break;
+      case 'thunder': {
+        const w = d.delay || 0.5;
+        burst(0.25, 'highpass', 900, 0.25, w, 0.7);
+        burst(3.2, 'lowpass', 220, 0.75, w + 0.05, 0.8, 60);
+        burst(2.2, 'lowpass', 120, 0.6, w + 0.4, 0.8);
+        break;
+      }
       case 'note': speak(noteText(d.no) + (d.next ? ' y ' + noteText(d.next) : '')); break;
     }
   }
@@ -204,12 +270,14 @@ export function createAudio() {
     setP(surf.sloshDepth.gain, 0, 0.08);
     setP(surf.squeal.gain, 0, 0.05);
     for (const r of rivals) setP(r.g.gain, 0, 0.08);
+    setP(rain.g.gain, 0, 0.2); setP(rain.g2.gain, 0, 0.2);
   }
 
   function update(st) {
     if (!ready || ctx.state !== 'running') return;
     const t = ctx.currentTime, dt = clamp(t - lastT, 0, 0.1); lastT = t;
     if (!st || !st.active) { silence(); return; }
+    setP(rain.g.gain, st.rain ? 0.09 : 0, 0.3); setP(rain.g2.gain, st.rain ? 0.12 : 0, 0.3);
     const m = st.me, v = m.sp / 300;
 
     // motor y marchas
@@ -271,7 +339,7 @@ export function createAudio() {
 
   return {
     unlock() {
-      if (!ctx) init();
+      if (!ctx) { init(); setTimeout(syncMusic, 0); }
       if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
       if (window.speechSynthesis && !voice) voice = pickVoice();
     },
@@ -279,7 +347,10 @@ export function createAudio() {
     resume() { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); },
     update,
     sfx,
-    setMuted(m) { muted = !!m; applyMaster(); if (muted && window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch (_) {} },
+    setMusic(on) { musicOn = !!on; syncMusic(); },
+    playMusic(want) { musicWanted = !!want; syncMusic(); },
+    get music() { return musicOn; },
+    setMuted(m) { muted = !!m; applyMaster(); syncMusic(); if (muted && window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch (_) {} },
     setVoice(on) { voiceOn = !!on; if (!on && window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch (_) {} },
     get muted() { return muted; },
     get voice() { return voiceOn; },

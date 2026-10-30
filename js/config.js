@@ -58,3 +58,50 @@ export const PHYS = {
   steer: 2.9,    // giro (rad/s) a plena dirección
   carR: 10,      // radio de colisión del coche
 };
+
+// ---------- Coches, mejoras y condiciones (fase 2) ----------
+
+// max/acc/grip: multiplicadores. off: aguante fuera de pista (barro, arena, nieve honda…).
+// mass: peso en los choques. armor: resistencia a los daños. r: radio de colisión.
+export const CAR_MODELS = {
+  compacto: { label: 'Compacto 4x4', desc: 'Equilibrado: tracción total y buen agarre en cualquier superficie.', price: 0,
+    max: 1.0, acc: 1.0, grip: 1.0, off: 1.0, mass: 1.0, armor: 1.0, r: 10 },
+  coupe: { label: 'Coupé clásico', desc: 'El más rápido en asfalto y tierra firme. Se va de atrás y sufre con los golpes.', price: 3500,
+    max: 1.08, acc: 1.06, grip: 0.86, off: 0.85, mass: 0.95, armor: 0.85, r: 10 },
+  raid: { label: 'Pick-up de raid', desc: 'Pesado y menos rápido, pero apenas pierde en barro, arena o nieve y aguanta los golpes.', price: 3000,
+    max: 0.91, acc: 0.9, grip: 1.04, off: 1.45, mass: 1.4, armor: 1.5, r: 11 },
+};
+
+export const UPGRADES = {
+  motor:      { label: 'Motor',      desc: '+3 % de velocidad punta y +6 % de aceleración por nivel' },
+  neumaticos: { label: 'Neumáticos', desc: '+6 % de agarre por nivel' },
+  suspension: { label: 'Suspensión', desc: 'Pierde menos fuera de pista y aterriza más suave' },
+  nitro:      { label: 'Nitro',      desc: 'Una carga más de capacidad por nivel' },
+  blindaje:   { label: 'Blindaje',   desc: '−15 % de daños por nivel' },
+};
+export const UP_PRICES = [500, 900, 1500, 2400];   // coste de los niveles 1 a 4
+export const REPAIR_PER_PCT = 12;                  // dólares por cada 1 % de daños
+
+export const CONDITIONS = {
+  seco:           { label: 'Seco, de día',     grip: 1.0, night: false, rain: false },
+  lluvia:         { label: 'Lluvia',           grip: 0.8, night: false, rain: true },
+  noche:          { label: 'Noche',            grip: 1.0, night: true,  rain: false },
+  'lluvia-noche': { label: 'Lluvia de noche',  grip: 0.8, night: true,  rain: true },
+};
+
+export function carSpec(id, up = {}) {
+  const M = CAR_MODELS[id] || CAR_MODELS.compacto, l = (k) => up[k] || 0;
+  return {
+    model: CAR_MODELS[id] ? id : 'compacto',
+    max: M.max * (1 + 0.03 * l('motor')),
+    acc: M.acc * (1 + 0.06 * l('motor')),
+    grip: M.grip * (1 + 0.06 * l('neumaticos')),
+    off: M.off * (1 + 0.08 * l('suspension')),
+    land: 1 - 0.15 * l('suspension'),
+    mass: M.mass,
+    armor: M.armor * (1 + 0.15 * l('blindaje')),
+    nitroCap: 3 + l('nitro'),
+    nitroStart: 2 + Math.ceil(l('nitro') / 2),
+    r: M.r,
+  };
+}

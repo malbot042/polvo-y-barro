@@ -36,6 +36,31 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
 
+### Campeonato
+
+Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noche o ambas. En las carreras compites contra tres rivales en pista. En los rallies corres solo y te comparas con los tiempos de los rivales, que se calculan simulando su pasada por el mismo tramo.
+
+- **Puntos**: 10 / 6 / 4 / 2. **Premios**: $1.500 / $900 / $550 / $300. Ganar la temporada da un bonus de $3.000.
+- **Garaje**: tres coches.
+
+  | Coche | Precio | Carácter |
+  |---|---|---|
+  | Compacto 4x4 | de serie | equilibrado |
+  | Coupé clásico | $3.500 | el más rápido en firme, poco agarre, frágil |
+  | Pick-up de raid | $3.000 | lento, pero apenas pierde fuera de pista y aguanta golpes |
+
+- **Mejoras** por coche, con 4 niveles cada una ($500, $900, $1.500 y $2.400): motor, neumáticos, suspensión, nitro y blindaje.
+- **Daños**: los golpes contra obstáculos y coches, y los aterrizajes duros, quitan velocidad punta, desvían la dirección y hacen que el coche eche humo. En el campeonato se arrastran de una prueba a otra hasta que pagas el taller ($12 por punto).
+- Cada temporada nueva, los rivales llevan más mejoras. El progreso se guarda en el navegador.
+
+### Condiciones
+
+Seco, lluvia, noche y lluvia de noche. La lluvia quita un 20 % de agarre en asfalto y tierra, alarga la frenada y levanta agua al pasar. De noche solo se ve lo que alumbran los faros (más lejos con faros auxiliares) y las farolas de la salida y los controles. Con lluvia de noche hay relámpagos y truenos.
+
+### Puentes
+
+Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte automáticamente en un puente. Los coches de arriba y los de abajo no chocan entre sí, y el puente tapa a los que pasan por debajo. Funciona igual en los circuitos del editor. El circuito *Ocho de la Fábrica* tiene uno.
+
 ### Sonido
 
 Todo el audio se genera en el navegador con Web Audio, sin archivos:
@@ -44,6 +69,7 @@ Todo el audio se genera en el navegador con Web Audio, sin archivos:
 - **Rodadura** distinta en asfalto, grava, nieve, barro, agua, hierba y arena, más un chirrido de neumáticos al derrapar sobre asfalto y viento con la velocidad.
 - **Rivales** con su propio motor, que suena según la distancia y a izquierda o derecha.
 - **Efectos**: golpes, conos, saltos y aterrizajes, nitro, latas, salpicaduras, cuenta atrás, parciales, vueltas, meta y récord.
+- **Lluvia y truenos**, y **música** sintetizada en los menús (botón *Música*).
 - **Copiloto por voz**: canta las notas en español (por ejemplo «izquierda tres y derecha cuatro larga») con la voz del sistema. Si el navegador no tiene voz en español, no suena.
 
 `M` silencia el sonido. Los botones *Sonido* y *Copiloto* recuerdan la elección.
@@ -84,8 +110,9 @@ js/config.js        superficies, entornos, objetos y física (ajusta aquí el ma
 js/tracks.js        circuitos incluidos
 js/track.js         geometría del trazado, notas del copiloto y dibujo de la pista
 js/car.js           coche de rally: sprite, decoraciones y suciedad
-js/game.js          simulación, IA, cámara y HUD sobre el canvas
-js/audio.js         sonido sintetizado y voz del copiloto
+js/game.js          simulación, IA, daños, lluvia, noche, puentes y HUD
+js/career.js        campeonato: dinero, garaje, mejoras y puntos
+js/audio.js         sonido sintetizado, música y voz del copiloto
 js/editor.js        editor de circuitos
 js/main.js          interfaz, pestañas y bucle principal
 tools/build-single.mjs  empaqueta todo en dist/polvo-y-barro.html (un solo archivo)

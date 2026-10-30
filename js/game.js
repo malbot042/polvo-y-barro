@@ -1,16 +1,19 @@
 // Simulación, IA y render de la carrera (cámara cenital que sigue al coche).
+// Fase 2: modelos con características, daños, lluvia, noche, puentes a dos niveles
+// y tiempos simulados de los rivales en las pruebas de rally del campeonato.
 import { WW, WH, SP, M_PER_PX, clamp, wrapA, store, fmtTime } from './util.js';
-import { SURF, PHYS, VERGE } from './config.js';
+import { SURF, PHYS, VERGE, CONDITIONS, carSpec } from './config.js';
 import { buildTrack, nearestGlobal, idxAdd, trackKey, drawCone, drawNitro } from './track.js';
-import { drawCar, RIVAL_LIVERIES, GHOST_LIVERY } from './car.js';
+import { drawCar, carFront, RIVAL_LIVERIES, GHOST_LIVERY } from './car.js';
 
-const RIVALS = [
-  { name: 'Lobo', livery: RIVAL_LIVERIES[0], skill: 0.95, num: '2' },
-  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.92, num: '3' },
-  { name: 'Rayo', livery: RIVAL_LIVERIES[2], skill: 0.89, num: '4' },
+export const RIVALS = [
+  { name: 'Lobo', livery: RIVAL_LIVERIES[0], skill: 0.95, num: '2', model: 'coupe' },
+  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.93, num: '3', model: 'raid' },
+  { name: 'Rayo', livery: RIVAL_LIVERIES[2], skill: 0.9, num: '4', model: 'compacto' },
 ];
 const BEST_KEY = 'pyb-best-v1';
 const NO_INPUT = { t: 0, b: 0, s: 0, n: 0, hb: 0 };
+const OFF_LIKE = { off: 1, verge: 1, barro: 1, agua: 1, nieve: 1 };
 
 // Flecha de nota de copiloto: más curvada cuanto más cerrada es la curva
 function drawArrow(c, x, y, s, dir, grade) {
@@ -41,17 +44,20 @@ export function createGame(cv, hooks) {
   const ctx = cv.getContext('2d');
   const mk = () => { const c = document.createElement('canvas'); c.width = WW; c.height = WH; return c; };
   const layers = { g: mk(), t: mk() };
+  const light = document.createElement('canvas'), lctx = light.getContext('2d');
   let T = null, def = null, key = '', mode = 'rally', state = 'idle';
+  let cfg = { cond: 'seco', me: { model: 'compacto' }, rivals: null, field: false, event: null };
+  let COND = CONDITIONS.seco;
   let cd = 0, raceT = 0, doneT = 0, shown = false, finCount = 0;
   let cars = [], parts = [], skids = [], cones = [], nitros = [], ghost = null, rec = [], recT = 0, flash = null;
+  let fieldTimes = [], lamps = [], drops = [], splashes = [], thunderT = 8, lightning = 0, emitLv = 0, sim = false;
   const cam = { x: WW / 2, y: WH / 2 };
   let dpr = 1;
   const keys = { t: 0, b: 0, l: 0, r: 0, n: 0, hb: 0 };
   let lastCount = 0, lastCall = -1, lastChain = -1;
 
   const player = () => cars.find((c) => c.me);
-  const sfx = (name, d) => { if (hooks.sfx) hooks.sfx(name, d || {}); };
-  // volumen de un efecto según la distancia al jugador
+  const sfx = (name, d) => { if (!sim && hooks.sfx) hooks.sfx(name, d || {}); };
   function atten(c) {
     if (c.me) return 1;
     const me = player();
@@ -64,48 +70,68 @@ export function createGame(cv, hooks) {
     return c.p;
   }
   const ranking = () => [...cars].sort((a, b) => score(b) - score(a));
-  const bestFor = () => (store.get(BEST_KEY, {}) || {})[key] || null;
+  const bestKey = () => key + '|' + (cfg.me.model || 'compacto');
+  const bestFor = () => (store.get(BEST_KEY, {}) || {})[bestKey()] || null;
   function saveBest(r) {
     const all = store.get(BEST_KEY, {}) || {};
-    all[key] = r;
-    if (!store.set(BEST_KEY, all)) { all[key] = { t: r.t, splits: r.splits }; store.set(BEST_KEY, all); }
+    all[bestKey()] = r;
+    if (!store.set(BEST_KEY, all)) { all[bestKey()] = { t: r.t, splits: r.splits }; store.set(BEST_KEY, all); }
   }
+  const myLivery = () => hooks.livery();
 
   function info() {
     if (!T) return null;
     const surfs = [...new Set(T.S.map((s) => s.s))].map((s) => SURF[s].label.toLowerCase());
     const b = bestFor();
-    return { name: def.name, loop: T.loop, laps: T.laps, lengthM: T.L * M_PER_PX, surfaces: surfs, best: b ? b.t : null, mode };
+    return {
+      name: def.name, loop: T.loop, laps: T.laps, lengthM: T.L * M_PER_PX, surfaces: surfs, best: b ? b.t : null, mode,
+      cond: cfg.cond, condLabel: COND.label, bridges: T.bridges.length, event: cfg.event,
+      field: fieldTimes.length ? fieldTimes.map((f) => ({ name: f.name, time: f.time })) : null,
+    };
   }
 
+  function makeCar(d, idx, lane) {
+    const s = T.S[idx], spec = d.spec || carSpec(d.model || 'compacto');
+    return {
+      ...d, spec, model: spec.model, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
+      idx, nd: 0, lv: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
+      nitro: spec.nitroStart, nitroT: 0, air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
+      dirt: { barro: 0, polvo: 0, nieve: 0 }, dmg: d.dmg || 0, pull: 0,
+      lane, laneT: 1 + Math.random(), stuck: 0, rev: 0, rl: null, rr: null, thr: 0, hb: 0,
+    };
+  }
+
+  function rivalsList() { return cfg.rivals || RIVALS; }
+
   function reset() {
-    parts = []; skids = []; raceT = 0; doneT = 0; shown = false; finCount = 0; flash = null; rec = []; recT = 0; state = 'idle'; lastCount = 0; lastCall = -1; lastChain = -1;
+    parts = []; skids = []; raceT = 0; doneT = 0; shown = false; finCount = 0; flash = null; rec = []; recT = 0; state = 'idle';
+    lastCount = 0; lastCall = -1; lastChain = -1; splashes = []; lightning = 0; thunderT = 6 + Math.random() * 10;
     if (!T) { cars = []; return; }
     cones = T.cones.map((c) => ({ x: c.x, y: c.y, vx: 0, vy: 0, a: 0, va: 0 }));
     nitros = T.nitros.map((p) => ({ x: p.x, y: p.y, t: 0 }));
-    const me = { name: 'Tú', me: true, skill: 1, num: '1' };
-    const list = mode === 'rally' ? [me] : [RIVALS[0], RIVALS[1], me, RIVALS[2]];
+    const me = { name: 'Tú', me: true, skill: 1, num: '1', model: cfg.me.model, spec: cfg.me.spec, dmg: cfg.me.dmg || 0 };
+    const R = rivalsList();
+    const list = mode === 'rally' ? [me] : [R[0], R[1], me, R[2]];
     const rows = mode === 'rally' ? [[5, 0]] : [[5, -0.22], [5, 0.22], [11, -0.22], [11, 0.22]];
     cars = list.map((d, i) => {
       const [back, lane] = rows[i];
       const idx = T.loop ? (T.start - back + T.n) % T.n : Math.max(0, T.start - back);
-      const s = T.S[idx];
-      return {
-        ...d, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
-        idx, nd: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
-        nitro: 2, nitroT: 0, air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra', dirt: { barro: 0, polvo: 0, nieve: 0 },
-        lane, laneT: 1 + Math.random(), stuck: 0, rev: 0, rl: null, rr: null,
-      };
+      return makeCar(d, idx, lane);
     });
     cars.forEach((c) => (c.p = progress(c)));
     const b = bestFor();
     ghost = mode === 'rally' && b && b.ghost ? b.ghost : null;
     const p = player(); cam.x = p.x; cam.y = p.y;
+    // farolas: salida, meta y controles
+    lamps = [];
+    const lampAt = (s) => { for (const side of [1, -1]) { const o = side * (s.w / 2 + 12); lamps.push([s.x + s.nx * o, s.y + s.ny * o]); } };
+    lampAt(T.S[T.start]); if (!T.loop) lampAt(T.S[T.finish]);
+    T.cps.forEach((c) => lampAt(T.S[T.loop ? (T.start + c) % T.n : c]));
   }
 
   function emit(x, y, col, vx, vy, size, life, grow = 1) {
-    if (parts.length > 420) return;
-    parts.push({ x, y, vx, vy, col, size, life, max: life, grow });
+    if (sim || parts.length > 440) return;
+    parts.push({ x, y, vx, vy, col, size, life, max: life, grow, lv: emitLv });
   }
 
   function nearLocal(c) {
@@ -123,6 +149,7 @@ export function createGame(cv, hooks) {
       if (g.i >= 0 && g.d < d - 6) { bi = g.i; d = g.d; }
     }
     c.idx = bi; c.nd = d;
+    c.lv = S[bi].lv && d <= S[bi].w / 2 + 14 ? 1 : 0;
   }
 
   function ai(c, dt) {
@@ -131,21 +158,24 @@ export function createGame(cv, hooks) {
     if (c.laneT <= 0) { c.laneT = 1.3 + Math.random() * 2.2; c.lane = (Math.random() * 2 - 1) * 0.2; }
     const t = S[idxAdd(T, c.idx, 5 + Math.floor(sp / 32))];
     let off = c.lane * t.w;
-    for (const o of T.solids) {
-      const px = t.x + t.nx * off, py = t.y + t.ny * off, dx = o.x - px, dy = o.y - py;
-      if (dx * dx + dy * dy < (o.r + 20) ** 2) {
-        const side = (o.x - t.x) * t.nx + (o.y - t.y) * t.ny;
-        off = side > off ? side - o.r - 20 : side + o.r + 20;
-        off = clamp(off, -t.w / 2, t.w / 2);
-        break;
+    if (!t.lv) {
+      for (const o of T.solids) {
+        const px = t.x + t.nx * off, py = t.y + t.ny * off, dx = o.x - px, dy = o.y - py;
+        if (dx * dx + dy * dy < (o.r + 20) ** 2) {
+          const side = (o.x - t.x) * t.nx + (o.y - t.y) * t.ny;
+          off = side > off ? side - o.r - 20 : side + o.r + 20;
+          off = clamp(off, -t.w / 2, t.w / 2);
+          break;
+        }
       }
     }
     const da = wrapA(Math.atan2(t.y + t.ny * off - c.y, t.x + t.nx * off - c.x) - c.a);
     let mx = 0;
     const span = 6 + Math.floor(sp / 11);
     for (let k = 2; k < span; k += 2) mx = Math.max(mx, Math.abs(S[idxAdd(T, c.idx, k)].hd));
-    const sf = SURF[S[idxAdd(T, c.idx, 8)].s];
-    const tgt = PHYS.max * c.skill * sf.max * clamp(1 - mx / 150, 0.33, 1) * (0.55 + 0.45 * Math.min(1, sf.grip / 7));
+    const sk = S[idxAdd(T, c.idx, 8)].s, sf = SURF[sk];
+    const g = sf.grip * c.spec.grip * (sk === 'asfalto' || sk === 'tierra' ? COND.grip : 1);
+    const tgt = PHYS.max * c.skill * sf.max * c.spec.max * (1 - c.dmg * 0.25) * clamp(1 - mx / 150, 0.33, 1) * (0.55 + 0.45 * Math.min(1, g / 7)) * (COND.night ? 0.95 : 1);
     if (state === 'race' && sp < 12) c.stuck += dt; else c.stuck = Math.max(0, c.stuck - dt * 2);
     if (c.stuck > 1.2) { c.rev = 0.9; c.stuck = 0; }
     if (c.rev > 0) { c.rev -= dt; return { t: 0, b: 1, s: -clamp(da * 2, -1, 1), n: 0, hb: 0 }; }
@@ -160,12 +190,14 @@ export function createGame(cv, hooks) {
 
   function split(c, isLap) {
     c.splits.push(raceT);
-    if (!c.me) return;
+    if (!c.me || sim) return;
     if (mode === 'rally') {
-      const b = bestFor(), k = c.splits.length - 1;
+      const k = c.splits.length - 1;
       const ending = T.loop ? c.lap >= T.laps : isLap;
-      if (b && b.splits && b.splits[k] != null) {
-        const d = raceT - b.splits[k];
+      // en campeonato se compara con el mejor rival; en rally libre, con tu récord
+      const ref = cfg.field && fieldTimes.length ? fieldTimes[0].splits : (bestFor() || {}).splits;
+      if (ref && ref[k] != null) {
+        const d = raceT - ref[k];
         flash = { txt: (d < 0 ? '−' : '+') + Math.abs(d).toFixed(2), col: d < 0 ? '#4cd07d' : '#ff5a5a', t: 2.2 };
         if (!ending) sfx('split', { good: d < 0 });
       } else { flash = { txt: fmtTime(raceT), col: '#ffffff', t: 2 }; if (!ending) sfx('split', { good: null }); }
@@ -176,6 +208,12 @@ export function createGame(cv, hooks) {
   }
   function finish(c) { if (c.finished) return; c.finished = true; c.ft = raceT; c.order = ++finCount; if (c.me) sfx('finish'); }
 
+  function hurt(c, amount) {
+    if (amount <= 0) return;
+    c.dmg = Math.min(1, c.dmg + amount / c.spec.armor);
+    if (c.dmg > 0.15 && !c.pull) c.pull = Math.random() < 0.5 ? -1 : 1;
+  }
+
   function updateCar(c, dt) {
     const S = T.S;
     let inp = NO_INPUT;
@@ -183,24 +221,27 @@ export function createGame(cv, hooks) {
     else if (state === 'done') inp = ai(c, dt);
 
     nearLocal(c);
+    emitLv = c.lv || (c.h > 8 ? 1 : 0);
     const s = S[c.idx];
     let sf, sk;
     if (c.nd <= s.w / 2) { sf = SURF[s.s]; sk = s.s; }
     else if (c.nd <= s.w / 2 + 9) { sf = VERGE; sk = 'verge'; }
     else { sf = T.theme.off; sk = 'off'; }
-    for (const p of T.patches) {
-      const dx = c.x - p.x, dy = c.y - p.y;
-      if (dx * dx + dy * dy < (p.r * 0.85) ** 2) { sf = SURF[p.k]; sk = p.k; }
+    if (!c.lv) {
+      for (const p of T.patches) {
+        const dx = c.x - p.x, dy = c.y - p.y;
+        if (dx * dx + dy * dy < (p.r * 0.85) ** 2) { sf = SURF[p.k]; sk = p.k; }
+      }
     }
     const sp0 = Math.hypot(c.vx, c.vy);
     if (sk !== c.sk && (sk === 'agua' || sk === 'barro') && sp0 > 50 && c.air <= 0) sfx(sk === 'agua' ? 'splash' : 'mud', { vol: atten(c) * Math.min(1, sp0 / 250) });
     c.sk = sk;
     c.thr = inp.t; c.hb = inp.hb;
     if (c.air <= 0 && sp0 > 40) {
-      const rate = { barro: 0.14, agua: 0.06, off: 0.035, verge: 0.025, tierra: 0.014, nieve: 0.02 }[sk] || 0;
+      const rate = { barro: 0.14, agua: 0.06, off: 0.035, verge: 0.025, tierra: COND.rain ? 0.04 : 0.014, nieve: 0.02 }[sk] || 0;
       if (rate) {
         const snowy = sk === 'nieve' || ((sk === 'off' || sk === 'verge') && T.def.theme === 'nieve');
-        const kind = sk === 'barro' || sk === 'agua' ? 'barro' : snowy ? 'nieve' : 'polvo';
+        const kind = sk === 'barro' || sk === 'agua' || (COND.rain && sk !== 'nieve') ? 'barro' : snowy ? 'nieve' : 'polvo';
         c.dirt[kind] = Math.min(1, c.dirt[kind] + rate * dt * (sp0 / PHYS.max) * 1.5);
       }
     }
@@ -210,6 +251,7 @@ export function createGame(cv, hooks) {
     const boost = c.nitroT > 0;
     c.brk = inp.b;
     const fx = Math.cos(c.a), fy = Math.sin(c.a), rx = -fy, ry = fx;
+    const spec = c.spec;
 
     if (c.air > 0) {
       c.air -= dt;
@@ -218,35 +260,44 @@ export function createGame(cv, hooks) {
       if (c.air <= 0) {
         c.h = 0;
         sfx('land', { vol: atten(c) * Math.min(1, c.airH / 30) });
+        if (c.airH > 24) hurt(c, ((c.airH - 24) / 420) * spec.land);
         const dust = sk === 'off' || sk === 'verge' ? T.theme.off.dust : sf.dust;
         for (let k = 0; k < 10; k++) emit(c.x, c.y, dust, (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 90, 3.5, 0.6, 1.4);
       }
     } else {
       let fs = c.vx * fx + c.vy * fy, ls = c.vx * rx + c.vy * ry;
-      const acc = PHYS.acc * sf.acc * (boost ? 1.9 : 1);
+      // superficie corregida por el coche: el raid pierde menos fuera de pista; la lluvia quita agarre
+      let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
+      if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
+      if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') gripS *= COND.grip;
+      const acc = PHYS.acc * accS * spec.acc * (boost ? 1.9 : 1);
       if (inp.t) fs += acc * dt;
-      if (inp.b) fs -= (fs > 5 ? PHYS.brake : PHYS.reverse) * dt;
+      if (inp.b) fs -= (fs > 5 ? PHYS.brake * (COND.rain ? 0.85 : 1) : PHYS.reverse) * dt;
       if (!inp.t && !inp.b) fs *= 1 - 0.7 * dt;
       let rb = 1;
-      if (!c.me) { const gap = score(c) - score(player()); rb = gap > T.n * 0.2 ? 0.9 : gap < -T.n * 0.2 ? 1.07 : 1; }
-      const max = PHYS.max * c.skill * rb * sf.max * (boost ? 1.35 : 1);
+      const me = player();
+      if (!c.me && me && mode === 'carrera') { const gap = score(c) - score(me); rb = gap > T.n * 0.2 ? 0.9 : gap < -T.n * 0.2 ? 1.07 : 1; }
+      const max = PHYS.max * c.skill * rb * maxS * spec.max * (1 - c.dmg * 0.25) * (boost ? 1.35 : 1);
       if (fs > max) fs = Math.max(max, fs - 520 * dt);
       if (fs < -PHYS.revMax) fs = -PHYS.revMax;
-      let grip = sf.grip;
+      let grip = gripS * spec.grip;
       if (inp.hb) { grip *= 0.32; fs *= 1 - 1.1 * dt; }
       ls *= Math.exp(-grip * dt);
-      c.steer += (clamp(inp.s, -1, 1) - c.steer) * Math.min(1, dt * 14);
+      const steerIn = clamp(inp.s + (c.me ? c.pull * c.dmg * 0.22 : 0), -1, 1);
+      c.steer += (steerIn - c.steer) * Math.min(1, dt * 14);
       const rate = PHYS.steer * clamp(fs / 80, -1, 1) * (1 - Math.min(0.32, (Math.abs(fs) / PHYS.max) * 0.32)) * (inp.hb ? 1.35 : 1);
       c.a += c.steer * rate * dt;
       c.vx = fx * fs + rx * ls; c.vy = fy * fs + ry * ls;
       c.x += c.vx * dt; c.y += c.vy * dt;
       c.fs = fs; c.ls = ls;
-      for (const r of T.ramps) {
-        const ca = Math.cos(r.a), sa = Math.sin(r.a), dx = c.x - r.x, dy = c.y - r.y;
-        const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;
-        if (Math.abs(u) < 17 && Math.abs(v) < 30) {
-          const along = c.vx * ca + c.vy * sa;
-          if (along > 60) { const k = Math.min(1, along / PHYS.max); c.airMax = 0.3 + 0.55 * k; c.air = c.airMax; c.airH = 10 + 26 * k; }
+      if (!c.lv) {
+        for (const r of T.ramps) {
+          const ca = Math.cos(r.a), sa = Math.sin(r.a), dx = c.x - r.x, dy = c.y - r.y;
+          const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;
+          if (Math.abs(u) < 17 && Math.abs(v) < 30) {
+            const along = c.vx * ca + c.vy * sa;
+            if (along > 60) { const k = Math.min(1, along / PHYS.max); c.airMax = 0.3 + 0.55 * k; c.air = c.airMax; c.airH = 10 + 26 * k; }
+          }
         }
       }
     }
@@ -257,10 +308,10 @@ export function createGame(cv, hooks) {
     if (c.y < 10) { c.y = 10; c.vy = Math.abs(c.vy) * 0.3; }
     if (c.y > WH - 10) { c.y = WH - 10; c.vy = -Math.abs(c.vy) * 0.3; }
 
-    // obstáculos fijos (se saltan por encima en el aire)
-    if (c.h < 10) {
+    // obstáculos fijos (se saltan por encima en el aire o desde el puente)
+    if (c.h < 10 && !c.lv) {
       for (const o of T.solids) {
-        const dx = c.x - o.x, dy = c.y - o.y, rr = o.r + PHYS.carR;
+        const dx = c.x - o.x, dy = c.y - o.y, rr = o.r + spec.r;
         if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
         const d = Math.hypot(dx, dy) || 1;
         if (d < rr) {
@@ -269,35 +320,42 @@ export function createGame(cv, hooks) {
           const vn = c.vx * nx + c.vy * ny;
           if (vn < 0) {
             if (vn < -50) sfx('hit', { vol: atten(c) * Math.min(1, -vn / 260) });
+            if (vn < -70) hurt(c, (-vn - 70) / 2200);
             c.vx -= 1.6 * vn * nx; c.vy -= 1.6 * vn * ny; c.vx *= 0.6; c.vy *= 0.6;
             if (vn < -60) for (let k = 0; k < 6; k++) emit(c.x - nx * 9, c.y - ny * 9, '#e8e2d0', (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 2, 0.4, 0.5);
           }
         }
       }
     }
-    for (const p of nitros) if (p.t <= 0 && (c.x - p.x) ** 2 + (c.y - p.y) ** 2 < 324) { p.t = 8; c.nitro = Math.min(3, c.nitro + 1); if (c.me) sfx('pickup'); }
+    for (const p of nitros) if (p.t <= 0 && (c.x - p.x) ** 2 + (c.y - p.y) ** 2 < 324) { p.t = 8; c.nitro = Math.min(spec.nitroCap, c.nitro + 1); if (c.me) sfx('pickup'); }
 
-    // efectos: marcas y polvo
+    // efectos: marcas, polvo, agua, humo de daños
     const sp = Math.hypot(c.vx, c.vy);
     const sliding = c.air <= 0 && sp > 40 && (Math.abs(c.ls) > 38 || (inp.hb && sp > 60) || (inp.b && c.fs > 90));
-    const rlx = c.x - fx * 8.6 + rx * 6.9, rly = c.y - fy * 8.6 + ry * 6.9, rrx = c.x - fx * 8.6 - rx * 6.9, rry = c.y - fy * 8.6 - ry * 6.9;
+    const ax = c.model === 'coupe' || c.model === 'raid' ? 10 : 8.6, wy = c.model === 'raid' ? 7.4 : 6.9;
+    const rlx = c.x - fx * ax + rx * wy, rly = c.y - fy * ax + ry * wy, rrx = c.x - fx * ax - rx * wy, rry = c.y - fy * ax - ry * wy;
     const soft = sk === 'barro' || sk === 'nieve' || sk === 'off' || sk === 'verge';
-    if (c.air <= 0 && (sliding || (soft && sp > 25)) && c.rl) {
+    if (!sim && c.air <= 0 && !c.lv && (sliding || (soft && sp > 25)) && c.rl) {
       const col = sk === 'off' || sk === 'verge' ? T.theme.off.skid : (SURF[sk] || SURF.tierra).skid;
       skids.push([c.rl[0], c.rl[1], rlx, rly, col], [c.rr[0], c.rr[1], rrx, rry, col]);
       if (skids.length > 2400) skids.splice(0, 2);
     }
     if (c.air > 0) { c.rl = null; c.rr = null; } else { c.rl = [rlx, rly]; c.rr = [rrx, rry]; }
-    if (c.air <= 0 && sp > 30) {
-      const rate = sk === 'asfalto' ? (sliding ? 0.6 : 0) : (sk === 'agua' ? 0.9 : 0.22) + (sliding ? 0.5 : 0) + (sp / PHYS.max) * 0.3;
+    if (!sim && c.air <= 0 && sp > 30) {
+      const wet = COND.rain && (sk === 'asfalto' || sk === 'tierra');
+      const rate = sk === 'asfalto' ? (sliding ? 0.6 : 0) + (wet ? 0.55 : 0) : (sk === 'agua' ? 0.9 : 0.22) + (sliding ? 0.5 : 0) + (sp / PHYS.max) * 0.3;
       if (Math.random() < rate) {
-        const col = sk === 'off' || sk === 'verge' ? T.theme.off.dust : SURF[sk].dust;
-        const big = sk !== 'barro' && sk !== 'agua';
+        const col = wet ? 'rgba(225,235,245,.8)' : sk === 'off' || sk === 'verge' ? T.theme.off.dust : SURF[sk].dust;
+        const big = sk !== 'barro' && sk !== 'agua' && !wet;
         emit(c.x - fx * 12, c.y - fy * 12, col, -c.vx * 0.2 + (Math.random() - 0.5) * 40, -c.vy * 0.2 + (Math.random() - 0.5) * 40,
-          big ? 4 : 2.4, 0.5 + Math.random() * 0.5, big ? 1.6 : 0.6);
+          big ? 4 : 2.4, 0.5 + Math.random() * 0.5, big ? 1.6 : 0.8);
       }
     }
     if (boost && Math.random() < 0.9) emit(c.x - fx * 14, c.y - fy * 14, Math.random() < 0.5 ? '#ffd23f' : '#ff6a1f', -fx * 70, -fy * 70, 2.5, 0.3, 0);
+    if (c.dmg > 0.45 && Math.random() < (c.dmg - 0.4) * 0.9) {
+      const g = c.dmg > 0.8 ? 40 : 120;
+      emit(c.x + fx * 10, c.y + fy * 10, `rgba(${g},${g},${g + 6},.7)`, -c.vx * 0.1 + (Math.random() - 0.5) * 20, -c.vy * 0.1 + (Math.random() - 0.5) * 20, 3, 0.9, 2.2);
+    }
 
     // vueltas, parciales y meta
     const prev = c.p;
@@ -318,13 +376,21 @@ export function createGame(cv, hooks) {
   function collideCars() {
     for (let i = 0; i < cars.length; i++) for (let j = i + 1; j < cars.length; j++) {
       const a = cars[i], b = cars[j];
-      if (Math.abs(a.h - b.h) > 10) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, min = 20;
+      if (Math.abs(a.h - b.h) > 10 || a.lv !== b.lv) continue;
+      const min = a.spec.r + b.spec.r;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
       if (d >= min) continue;
-      const nx = dx / d, ny = dy / d, o = (min - d) / 2;
-      a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
+      const ma = a.spec.mass, mb = b.spec.mass;
+      const nx = dx / d, ny = dy / d, o = min - d;
+      a.x -= nx * o * mb / (ma + mb); a.y -= ny * o * mb / (ma + mb); b.x += nx * o * ma / (ma + mb); b.y += ny * o * ma / (ma + mb);
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-      if (rv < 0) { if (rv < -40) sfx('hit', { vol: Math.max(atten(a), atten(b)) * Math.min(1, -rv / 260) * 0.8 }); const imp = -rv * 0.8; a.vx -= nx * imp * 0.5; a.vy -= ny * imp * 0.5; b.vx += nx * imp * 0.5; b.vy += ny * imp * 0.5; }
+      if (rv < 0) {
+        if (rv < -40) sfx('hit', { vol: Math.max(atten(a), atten(b)) * Math.min(1, -rv / 260) * 0.8 });
+        if (rv < -60) { hurt(a, ((-rv - 60) / 3000) * (mb / ma)); hurt(b, ((-rv - 60) / 3000) * (ma / mb)); }
+        const imp = -rv * 0.8;
+        a.vx -= nx * imp * mb / (ma + mb); a.vy -= ny * imp * mb / (ma + mb);
+        b.vx += nx * imp * ma / (ma + mb); b.vy += ny * imp * ma / (ma + mb);
+      }
     }
   }
 
@@ -332,7 +398,7 @@ export function createGame(cv, hooks) {
     const f = Math.exp(-2.4 * dt);
     for (const k of cones) {
       for (const c of cars) {
-        if (c.h > 8) continue;
+        if (c.h > 8 || c.lv) continue;
         const dx = k.x - c.x, dy = k.y - c.y, d2 = dx * dx + dy * dy;
         if (d2 < 256) {
           const d = Math.sqrt(d2) || 1;
@@ -344,6 +410,22 @@ export function createGame(cv, hooks) {
       if (k.st > 0) k.st -= dt;
       k.x += k.vx * dt; k.y += k.vy * dt; k.vx *= f; k.vy *= f; k.a += k.va * dt; k.va *= f;
     }
+  }
+
+  // Tiempo de un rival corriendo solo el tramo (para las pruebas de rally del campeonato)
+  function simulate(d) {
+    const saved = { cars, state, raceT, parts, skids, cones, nitros, finCount };
+    sim = true;
+    cones = []; nitros = T.nitros.map((p) => ({ x: p.x, y: p.y, t: 0 })); finCount = 0; state = 'race'; raceT = 0;
+    const idx = T.loop ? (T.start - 5 + T.n) % T.n : Math.max(0, T.start - 5);
+    cars = [makeCar({ ...d, me: false }, idx, 0)];
+    const c = cars[0], DT = 1 / 60;
+    c.p = progress(c);
+    while (raceT < 400 && !c.finished) { updateCar(c, DT); raceT += DT; for (const p of nitros) if (p.t > 0) p.t -= DT; }
+    const out = { name: d.name, livery: d.livery, model: c.model, time: c.finished ? c.ft * (0.9 + Math.random() * 0.03) : null, splits: c.splits.map((t) => t * 0.915) };
+    ({ cars, state, raceT, parts, skids, cones, nitros, finCount } = saved);
+    sim = false;
+    return out;
   }
 
   function step(dt) {
@@ -374,6 +456,12 @@ export function createGame(cv, hooks) {
     cam.x += (me.x + me.vx * 0.45 - cam.x) * k;
     cam.y += (me.y + me.vy * 0.45 - cam.y) * k;
     if (flash) { flash.t -= dt; if (flash.t <= 0) flash = null; }
+    // tormenta: relámpago y trueno de vez en cuando
+    if (COND.rain && COND.night && state !== 'idle') {
+      thunderT -= dt;
+      if (thunderT <= 0) { lightning = 1; thunderT = 14 + Math.random() * 18; sfx('thunder', { delay: 0.3 + Math.random() * 1.2 }); }
+    }
+    if (lightning > 0) lightning = Math.max(0, lightning - dt * 2.2);
     if (me.finished && !shown) {
       doneT += dt;
       if (doneT > 1.6) { shown = true; state = 'done'; results(); }
@@ -400,20 +488,20 @@ export function createGame(cv, hooks) {
 
   function results() {
     const me = player();
+    const meRow = { name: 'Tú', me: true, color: myLivery().base, time: me.ft, dmg: me.dmg };
+    let rows, rally = null;
     if (mode === 'rally') {
       const b = bestFor(), isRec = !b || me.ft < b.t;
       if (isRec) saveBest({ t: me.ft, splits: me.splits, ghost: rec });
       if (isRec && b) sfx('record');
-      hooks.onResults({
-        mode, track: def.name, time: me.ft, best: b ? b.t : null, record: isRec, splits: me.splits,
-        prevSplits: b ? b.splits : null, lapEvery: T.loop ? T.cps.length + 1 : 0,
-      });
+      rally = { best: b ? b.t : null, record: isRec, splits: me.splits, prevSplits: b ? b.splits : null, lapEvery: T.loop ? T.cps.length + 1 : 0 };
+      rows = [meRow, ...fieldTimes.map((f) => ({ name: f.name, color: f.livery.base, time: f.time }))]
+        .sort((a, b2) => (a.time == null) - (b2.time == null) || a.time - b2.time);
     } else {
-      hooks.onResults({
-        mode, track: def.name,
-        rows: ranking().map((c, i) => ({ pos: i + 1, name: c.name, color: c.me ? hooks.livery().base : c.livery.base, me: !!c.me, time: c.finished ? c.ft : null })),
-      });
+      rows = ranking().map((c) => (c.me ? meRow : { name: c.name, color: c.livery.base, time: c.finished ? c.ft : null }));
     }
+    rows.forEach((r, i) => (r.pos = i + 1));
+    hooks.onResults({ mode, track: def.name, cond: cfg.cond, event: cfg.event, rows, rally, dmg: me.dmg, field: cfg.field });
   }
 
   function hud() {
@@ -423,12 +511,14 @@ export function createGame(cv, hooks) {
     if (T.loop) { aL = 'Vuelta'; a = `${Math.min(me.lap + 1, T.laps)}/${T.laps}`; }
     else { aL = 'Avance'; a = Math.round(clamp((me.p - T.start) / (T.finish - T.start), 0, 1) * 100) + '%'; }
     if (mode === 'carrera') { bL = 'Posición'; b = state === 'idle' ? '–' : `${ranking().indexOf(me) + 1}/${cars.length}`; }
+    else if (cfg.field && fieldTimes.length) { bL = 'A batir'; b = fmtTime(fieldTimes[0].time); }
     else { bL = 'Récord'; const bb = bestFor(); b = bb ? fmtTime(bb.t) : '—'; }
     return {
       aL, a, bL, b,
       time: fmtTime(me.finished ? me.ft : raceT),
       speed: Math.round(Math.hypot(me.vx, me.vy) * M_PER_PX * 3.6),
-      nitro: me.nitro,
+      nitro: me.nitro, nitroCap: me.spec.nitroCap,
+      dmg: Math.round(me.dmg * 100),
     };
   }
 
@@ -501,7 +591,7 @@ export function createGame(cv, hooks) {
     const st = T.S[T.start];
     ctx.fillStyle = '#ffffff'; ctx.fillRect(ox + st.x * sc - 3 * u, oy + st.y * sc - 3 * u, 6 * u, 6 * u);
     for (const c of cars) {
-      ctx.fillStyle = c.me ? hooks.livery().base : c.livery.base;
+      ctx.fillStyle = c.me ? myLivery().base : c.livery.base;
       ctx.beginPath(); ctx.arc(ox + c.x * sc, oy + c.y * sc, (c.me ? 4.2 : 3.2) * u, 0, 7); ctx.fill();
       if (c.me) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * u; ctx.stroke(); }
     }
@@ -513,7 +603,91 @@ export function createGame(cv, hooks) {
     ctx.strokeText(txt, cv.width / 2, y); ctx.fillStyle = col; ctx.fillText(txt, cv.width / 2, y);
   }
 
+  const livOf = (c) => (c.me ? myLivery() : c.livery);
+
+  // Noche: capa oscura con huecos para faros y farolas, luego brillos aditivos
+  function renderNight(z, x0, y0) {
+    if (light.width !== cv.width || light.height !== cv.height) { light.width = cv.width; light.height = cv.height; }
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.fillStyle = `rgba(4,8,20,${0.86 - lightning * 0.7})`;
+    lctx.fillRect(0, 0, light.width, light.height);
+    lctx.globalCompositeOperation = 'destination-out';
+    lctx.setTransform(z, 0, 0, z, -x0 * z, -y0 * z);
+    for (const [x, y] of lamps) {
+      const g = lctx.createRadialGradient(x, y, 2, x, y, 70);
+      g.addColorStop(0, 'rgba(0,0,0,.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = g; lctx.fillRect(x - 70, y - 70, 140, 140);
+    }
+    for (const c of cars) {
+      const L = livOf(c), fr = carFront(c.model), R = L.pod ? 360 : 260;
+      lctx.save(); lctx.translate(c.x, c.y); lctx.rotate(c.a);
+      const g = lctx.createRadialGradient(fr, 0, 4, fr, 0, R);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.55, 'rgba(0,0,0,.7)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = g;
+      lctx.beginPath(); lctx.moveTo(fr - 2, -7); lctx.lineTo(fr + R, -R * (L.pod ? 0.5 : 0.4)); lctx.lineTo(fr + R, R * (L.pod ? 0.5 : 0.4)); lctx.lineTo(fr - 2, 7); lctx.closePath(); lctx.fill();
+      const a = lctx.createRadialGradient(0, 0, 4, 0, 0, 40);
+      a.addColorStop(0, 'rgba(0,0,0,.75)'); a.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = a; lctx.fillRect(-40, -40, 80, 80);
+      lctx.restore();
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(light, 0, 0);
+    // brillos
+    ctx.setTransform(z, 0, 0, z, -x0 * z, -y0 * z);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const c of cars) {
+      const fr = carFront(c.model);
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a);
+      for (const s of [-1, 1]) {
+        const g = ctx.createRadialGradient(fr, s * 5, 0, fr, s * 5, 12);
+        g.addColorStop(0, 'rgba(255,240,200,.55)'); g.addColorStop(1, 'rgba(255,240,200,0)');
+        ctx.fillStyle = g; ctx.fillRect(fr - 12, s * 5 - 12, 24, 24);
+        const rr = ctx.createRadialGradient(-fr, s * 4.5, 0, -fr, s * 4.5, c.brk ? 14 : 7);
+        rr.addColorStop(0, c.brk ? 'rgba(255,40,30,.7)' : 'rgba(255,40,30,.3)'); rr.addColorStop(1, 'rgba(255,40,30,0)');
+        ctx.fillStyle = rr; ctx.fillRect(-fr - 14, s * 4.5 - 14, 28, 28);
+      }
+      ctx.restore();
+    }
+    for (const [x, y] of lamps) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 10);
+      g.addColorStop(0, 'rgba(255,220,160,.8)'); g.addColorStop(1, 'rgba(255,220,160,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - 10, y - 10, 20, 20);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Lluvia: gotas en pantalla y salpicaduras en el suelo
+  function renderRain(z, x0, y0, vw, vh, dt) {
+    const cw = cv.width, ch = cv.height;
+    if (!COND.night) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(45,60,75,${0.24 - lightning * 0.2})`; ctx.fillRect(0, 0, cw, ch); }
+    ctx.setTransform(z, 0, 0, z, -x0 * z, -y0 * z);
+    for (let k = 0; k < 4; k++) splashes.push({ x: x0 + Math.random() * vw, y: y0 + Math.random() * vh, t: 0 });
+    ctx.strokeStyle = 'rgba(220,235,248,.45)'; ctx.lineWidth = 0.8;
+    for (let i = splashes.length - 1; i >= 0; i--) {
+      const s = splashes[i]; s.t += dt;
+      if (s.t > 0.35) { splashes.splice(i, 1); continue; }
+      ctx.globalAlpha = 1 - s.t / 0.35;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 1 + s.t * 14, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (drops.length < 260) for (let i = 0; i < 260; i++) drops.push({ x: Math.random(), y: Math.random(), l: 0.02 + Math.random() * 0.04, s: 1.4 + Math.random() * 1.2 });
+    ctx.strokeStyle = 'rgba(200,220,240,.38)'; ctx.lineWidth = Math.max(1, dpr * 0.9);
+    ctx.beginPath();
+    for (const d of drops) {
+      d.y += d.s * dt; d.x -= 0.12 * dt;
+      if (d.y > 1.05) { d.y = -0.05; d.x = Math.random() * 1.1; }
+      if (d.x < -0.05) d.x += 1.1;
+      ctx.moveTo(d.x * cw, d.y * ch); ctx.lineTo((d.x + d.l * 0.25) * cw, (d.y - d.l) * ch);
+    }
+    ctx.stroke();
+    if (lightning > 0 && !COND.night) { ctx.fillStyle = `rgba(255,255,255,${lightning * 0.35})`; ctx.fillRect(0, 0, cw, ch); }
+  }
+
+  let lastRender = 0;
   function render(time) {
+    const dt = clamp((time - lastRender) / 1000, 0, 0.1); lastRender = time;
     const cw = cv.width, ch = cv.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (!T) { ctx.fillStyle = '#2a2f35'; ctx.fillRect(0, 0, cw, ch); return; }
@@ -524,6 +698,7 @@ export function createGame(cv, hooks) {
     const x0 = cx - vw / 2, y0 = cy - vh / 2;
     ctx.setTransform(z, 0, 0, z, -x0 * z, -y0 * z);
     blit(layers.g, x0, y0, vw, vh);
+    if (COND.rain) { ctx.fillStyle = 'rgba(20,30,45,.18)'; ctx.fillRect(x0, y0, vw, vh); }   // suelo mojado
 
     ctx.lineWidth = 2.4; ctx.lineCap = 'round';
     let last = null;
@@ -537,18 +712,28 @@ export function createGame(cv, hooks) {
     for (const k of cones) drawCone(ctx, k);
     if (ghost && state !== 'idle') {
       const i = Math.min(Math.floor(raceT * 30), ghost.length / 4 - 1) * 4;
-      if (i >= 0) drawCar(ctx, { x: ghost[i], y: ghost[i + 1], a: ghost[i + 2], h: ghost[i + 3], num: 'F' }, GHOST_LIVERY, 0.42);
+      if (i >= 0) drawCar(ctx, { x: ghost[i], y: ghost[i + 1], a: ghost[i + 2], h: ghost[i + 3], num: 'F', model: cfg.me.model }, GHOST_LIVERY, 0.42);
     }
-    const myLiv = hooks.livery();
-    for (const c of cars) if (c.h <= 8) drawCar(ctx, c, c.me ? myLiv : c.livery);
-    for (const p of parts) {
-      const a = Math.max(0, p.life / p.max);
-      ctx.globalAlpha = a * 0.85; ctx.fillStyle = p.col;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 + (1 - a) * p.grow), 0, 7); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    const drawParts = (lv) => {
+      for (const p of parts) {
+        if ((p.lv || 0) !== lv) continue;
+        const a = Math.max(0, p.life / p.max);
+        ctx.globalAlpha = a * 0.85; ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 + (1 - a) * p.grow), 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    };
+    const high = (c) => c.h > 8 || c.lv;
+    for (const c of cars) if (!high(c)) drawCar(ctx, c, livOf(c));
+    drawParts(0);
+    for (const b of T.bridges) if (b.cv) ctx.drawImage(b.cv, b.x, b.y);
+    for (const c of cars) if (c.lv && c.h <= 8) drawCar(ctx, c, livOf(c));
+    drawParts(1);
     blit(layers.t, x0, y0, vw, vh);
-    for (const c of cars) if (c.h > 8) drawCar(ctx, c, c.me ? myLiv : c.livery);
+    for (const c of cars) if (c.h > 8) drawCar(ctx, c, livOf(c));
+
+    if (COND.night) renderNight(z, x0, y0);
+    if (COND.rain) renderRain(z, x0, y0, vw, vh, dt);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const u = dpr * clamp(cv.clientWidth / 760, 0.62, 1.1);
@@ -567,10 +752,31 @@ export function createGame(cv, hooks) {
     if (w && h && (cv.width !== w || cv.height !== h)) { cv.width = w; cv.height = h; }
   }
 
+  // opts: { def, mode, cond, me: { model, spec, dmg }, rivals, field, event }
+  function setup(opts) {
+    if (opts.def !== undefined && opts.def !== def) { def = opts.def; T = def ? buildTrack(def, layers) : null; key = T ? trackKey(def) : ''; }
+    if (opts.mode) mode = opts.mode;
+    cfg = {
+      cond: opts.cond || cfg.cond || 'seco',
+      me: opts.me || cfg.me,
+      rivals: opts.rivals !== undefined ? opts.rivals : cfg.rivals,
+      field: opts.field !== undefined ? !!opts.field : cfg.field,
+      event: opts.event !== undefined ? opts.event : cfg.event,
+    };
+    COND = CONDITIONS[cfg.cond] || CONDITIONS.seco;
+    fieldTimes = [];
+    if (T && mode === 'rally' && cfg.field) {
+      fieldTimes = rivalsList().map((r) => simulate(r)).filter((f) => f.time != null).sort((a, b) => a.time - b.time);
+    }
+    reset();
+    return info();
+  }
+
   return {
     keys,
-    load(d) { def = d; T = d ? buildTrack(d, layers) : null; key = T ? trackKey(d) : ''; reset(); return info(); },
-    setMode(m) { mode = m; reset(); return info(); },
+    setup,
+    load(d) { return setup({ def: d }); },
+    setMode(m) { return setup({ mode: m }); },
     start() { if (!T) return; reset(); state = 'count'; cd = 3; },
     reset() { reset(); return info(); },
     tick: step,
@@ -579,22 +785,23 @@ export function createGame(cv, hooks) {
     hud,
     info,
     get state() { return state; },
-    get cars() { return cars; },
+    get cars() { return cars; },     // para depurar desde la consola
+    get track() { return T; },
     audioState() {
       const me = player();
-      if (!T || !me || state === 'idle') return { active: false };
+      if (!T || !me || state === 'idle') return { active: false, rain: COND.rain && !!T };
       return {
         active: true,
         count: state === 'count',
+        rain: COND.rain,
         me: {
           sp: Math.hypot(me.vx, me.vy), thr: state === 'count' ? keys.t : me.thr, brk: me.brk, hb: me.hb,
-          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, boost: me.nitroT > 0, offKind: T.def.theme,
+          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, boost: me.nitroT > 0, offKind: T.def.theme, dmg: me.dmg,
         },
         rivals: cars.filter((c) => !c.me).map((c) => ({
           dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr,
         })),
       };
-    },     // para depurar desde la consola
-    get track() { return T; },
+    },
   };
 }

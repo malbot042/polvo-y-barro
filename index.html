@@ -29,15 +29,22 @@
   <div class="app">
     <div class="apptabs" role="tablist">
       <button type="button" role="tab" id="t-play" aria-selected="true" aria-controls="pane-play">Jugar</button>
+      <button type="button" role="tab" id="t-champ" aria-selected="false" aria-controls="pane-champ">Campeonato</button>
       <button type="button" role="tab" id="t-edit" aria-selected="false" aria-controls="pane-edit">Editor de circuitos</button>
     </div>
 
     <div id="pane-play" class="pane" role="tabpanel" aria-labelledby="t-play">
+      <div class="evbar" id="p-event" hidden>
+        <div><span class="eyebrow" id="p-event-k">Campeonato</span><b id="p-event-t"></b></div>
+        <button type="button" class="sbtn" id="p-event-back">Volver al campeonato</button>
+      </div>
       <div class="setup">
         <label class="fld">Circuito<select id="p-track"></select></label>
-        <div class="fld">Coche
+        <label class="fld">Coche<select id="p-model"></select></label>
+        <div class="fld">Decoración
           <div class="carpick"><canvas id="p-car-prev" aria-hidden="true"></canvas><select id="p-car" aria-label="Decoración del coche"></select></div>
         </div>
+        <label class="fld">Condiciones<select id="p-cond"></select></label>
         <div class="fld">Modo
           <div class="seg" role="group" aria-label="Modo de juego">
             <button type="button" data-mode="rally" aria-pressed="true">Rally</button>
@@ -48,6 +55,7 @@
           <div class="seg" role="group" aria-label="Audio">
             <button type="button" id="snd" aria-pressed="true">Sonido sí</button>
             <button type="button" id="voz" aria-pressed="true">Copiloto sí</button>
+            <button type="button" id="mus" aria-pressed="true">Música sí</button>
           </div>
         </div>
         <button type="button" class="btn ghost" id="p-restart">Reiniciar</button>
@@ -59,6 +67,7 @@
           <div><small>Tiempo</small><b id="h-time">0:00.00</b></div>
           <div><small>km/h</small><b id="h-speed">0</b></div>
           <div><small>Nitro</small><b id="h-nitro">◆◆◇</b></div>
+          <div><small>Daños</small><b id="h-dmg">0%</b></div>
           <button type="button" class="fsbtn" id="fs" aria-label="Pantalla completa" title="Pantalla completa (F)">
             <svg class="fs-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
             <svg class="fs-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>
@@ -80,6 +89,46 @@
             <button type="button" class="pad" data-k="b" aria-label="Freno">Freno</button>
             <button type="button" class="pad gas" data-k="t" aria-label="Acelerar">Gas</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pane-champ" class="pane" role="tabpanel" aria-labelledby="t-champ" hidden>
+      <div class="cstats">
+        <div><small>Dinero</small><b id="c-money">$0</b></div>
+        <div><small>Temporada</small><b id="c-season">1</b></div>
+        <div><small>Prueba</small><b id="c-round">1/6</b></div>
+        <div><small>Títulos</small><b id="c-titles">0</b></div>
+      </div>
+      <div class="cgrid">
+        <div class="cmain">
+          <div class="box nextev" id="c-next"></div>
+          <div class="box">
+            <h4>Calendario</h4>
+            <ol class="cal" id="c-cal"></ol>
+          </div>
+          <div class="box">
+            <h4>Clasificación</h4>
+            <table class="res stand"><tbody id="c-stand"></tbody></table>
+          </div>
+        </div>
+        <div class="cside">
+          <div class="box">
+            <h4>Garaje</h4>
+            <div class="models" id="c-models"></div>
+          </div>
+          <div class="box">
+            <h4>Mejoras <small id="c-upcar"></small></h4>
+            <div class="ups" id="c-ups"></div>
+          </div>
+          <div class="box">
+            <h4>Taller</h4>
+            <div class="dmgbar"><i id="c-dmgfill"></i></div>
+            <p class="muted" id="c-dmgtxt"></p>
+            <button type="button" class="sbtn" id="c-repair">Reparar</button>
+          </div>
+          <p class="hint" id="c-hint" aria-live="polite">Gana dinero en cada prueba y gástalo en coches, mejoras y reparaciones. Los daños se arrastran de una prueba a la siguiente.</p>
+          <button type="button" class="sbtn" id="c-reset">Borrar el campeonato y empezar de cero</button>
         </div>
       </div>
     </div>
@@ -203,14 +252,14 @@
     <h2>Hoja de ruta</h2>
     <div class="cols">
       <div class="sheet">
-        <span class="when">Fase 1 · este prototipo</span>
+        <span class="when">Fase 1 · hecho</span>
         <h3>Base jugable</h3>
         <ul><li>Física con derrape y freno de mano</li><li>Cinco superficies, saltos y nitro</li><li>Notas del copiloto, parciales y fantasma</li><li>Tres rivales con IA</li><li>Editor con guardado e intercambio</li><li>Sonido de motor, superficies y copiloto por voz</li></ul>
       </div>
       <div class="sheet">
-        <span class="when">Fase 2</span>
+        <span class="when">Fase 2 · hecho</span>
         <h3>Juego completo</h3>
-        <ul><li>Música y voces grabadas del copiloto</li><li>Campeonato de varias pruebas</li><li>Garaje con mejoras y coches distintos</li><li>Daños, lluvia y conducción de noche</li><li>Puentes y cruces a distinto nivel</li></ul>
+        <ul><li>Campeonato de seis pruebas con puntos y premios</li><li>Tres coches distintos y cinco mejoras</li><li>Daños que se pagan en el taller</li><li>Lluvia, noche y tormentas</li><li>Puentes en los cruces del trazado</li><li>Música sintetizada</li></ul>
       </div>
       <div class="sheet">
         <span class="when">Fase 3</span>

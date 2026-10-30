@@ -81,7 +81,11 @@ export function createEditor(cv, hooks) {
     const W = cv.width, H = cv.height, sc = W / WW, px = pxWorld();
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4572e';
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (T) { ctx.drawImage(layers.g, 0, 0, W, H); ctx.drawImage(layers.t, 0, 0, W, H); }
+    if (T) {
+      ctx.drawImage(layers.g, 0, 0, W, H);
+      for (const b of T.bridges) if (b.cv) ctx.drawImage(b.cv, b.x * sc, b.y * sc, b.cv.width * sc, b.cv.height * sc);
+      ctx.drawImage(layers.t, 0, 0, W, H);
+    }
     else { ctx.fillStyle = (THEME[def.theme] || THEME.pradera).ground; ctx.fillRect(0, 0, W, H); }
     ctx.setTransform(sc, 0, 0, sc, 0, 0);
 
