@@ -81,6 +81,10 @@ El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pa
 
 La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia), el coche gira más mientras va cruzado y apenas pierde velocidad. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `keep`, `yaw`) dentro de `js/config.js`.
 
+### Efecto de monitor
+
+El botón *CRT* (junto a los de sonido) simula una pantalla de recreativa sin curvarla: barras horizontales oscuras alineadas con los píxeles reales de la pantalla, franjas muy suaves de fósforo rojo, verde y azul, viñeta en las esquinas y un poco más de brillo para compensar. Viene encendido y se recuerda la elección. La intensidad se ajusta en `CRT` dentro de `js/config.js`. Las tarjetas de menú quedan por encima, nítidas.
+
 ### Coches
 
 Cada coche es un compacto de rally, con aletas ensanchadas, alerón, toma de aire en el techo, rejillas en el capó, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay cinco decoraciones para elegir. Se dibujan una vez en alta resolución vistos desde arriba y, en el juego, se montan por capas a distintas alturas (ruedas, laterales, capó, cabina acristalada y techo) para verlos en tres cuartos. Se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.

@@ -161,6 +161,16 @@ function showResults(r) {
   if ($('o-champ')) $('o-champ').addEventListener('click', () => leaveEvent(true));
 }
 
+// ---------- Efecto de monitor ----------
+let crt = store.get('pyb-crt', true) !== false;
+function syncCRT() {
+  $('crt').setAttribute('aria-pressed', crt); $('crt').textContent = crt ? 'CRT sí' : 'CRT no';
+  $('cv').classList.toggle('crt', crt);
+  game.setCRT(crt);
+}
+$('crt').addEventListener('click', () => { crt = !crt; store.set('pyb-crt', crt); syncCRT(); });
+syncCRT();
+
 // ---------- Juego libre ----------
 function quickSetup(def) {
   return game.setup({

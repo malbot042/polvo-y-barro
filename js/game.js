@@ -3,7 +3,7 @@
 // simulados de los rivales en los rallies del campeonato y el modo recreativa
 // (cuenta atrás, controles que dan tiempo y puntos por derrapar).
 import { WW, WH, SP, M_PER_PX, ISO_C, clamp, wrapA, store, fmtTime, isoView } from './util.js';
-import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, carSpec } from './config.js';
+import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, carSpec } from './config.js';
 import { buildTrack, nearestGlobal, idxAdd, trackKey } from './track.js';
 import { drawCarIso, drawCarShadowIso, carFront, RIVAL_LIVERIES, GHOST_LIVERY } from './car.js';
 import { drawDecorIso, decorTop, hasBillboard, drawConeIso, drawNitroIso, drawLampIso, LAMP_H, drawRampIso, drawArchIso, bridgePieces, drawBridgePiece } from './iso.js';
@@ -57,6 +57,9 @@ export function createGame(cv, hooks) {
   // recreativa: tiempo por control (allow), tiempo restante, puntos y combo de derrape
   let arc = null;
   const ghostCv = document.createElement('canvas'), gctx = ghostCv.getContext('2d');
+  // efecto de monitor: patrón de barras y viñeta, rehechos solo al cambiar de tamaño o de densidad de píxeles
+  let crtOn = true, crtPat = null, crtKey = '';
+  const vig = document.createElement('canvas');
   const cam = { x: WW / 2, y: WH / 2 };
   let dpr = 1;
   const keys = { t: 0, b: 0, l: 0, r: 0, n: 0, hb: 0 };
@@ -806,6 +809,30 @@ export function createGame(cv, hooks) {
     ctx.globalAlpha = 0.42; ctx.drawImage(ghostCv, sx - size / 2, sy - size / 2); ctx.globalAlpha = 1;
   }
 
+  // Barras horizontales alineadas con los píxeles reales (sin moiré con escalados no enteros),
+  // franjas de fósforo rojo, verde y azul y viñeta suave. Va encima de todo lo del canvas.
+  function renderCRT() {
+    const cw = cv.width, ch = cv.height, k = cw + 'x' + ch + '@' + dpr;
+    if (k !== crtKey) {
+      crtKey = k;
+      const p = Math.max(2, Math.round(CRT.period * dpr)), lw = Math.max(1, Math.round(p / 3)), mw = Math.max(1, Math.round(dpr));
+      const tile = document.createElement('canvas');
+      tile.width = mw * 3; tile.height = p;
+      const t = tile.getContext('2d');
+      ['255,40,40', '40,255,40', '60,90,255'].forEach((col, i) => { t.fillStyle = `rgba(${col},${CRT.mask})`; t.fillRect(i * mw, 0, mw, p); });
+      t.fillStyle = `rgba(0,0,0,${CRT.lines})`; t.fillRect(0, p - lw, mw * 3, lw);
+      crtPat = ctx.createPattern(tile, 'repeat');
+      vig.width = cw; vig.height = ch;
+      const v = vig.getContext('2d'), r = Math.hypot(cw, ch) / 2;
+      const g = v.createRadialGradient(cw / 2, ch / 2, r * 0.45, cw / 2, ch / 2, r);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${CRT.vignette})`);
+      v.fillStyle = g; v.fillRect(0, 0, cw, ch);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = crtPat; ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(vig, 0, 0);
+  }
+
   let lastRender = 0;
   function render(time) {
     const dt = clamp((time - lastRender) / 1000, 0, 0.1); lastRender = time;
@@ -892,6 +919,7 @@ export function createGame(cv, hooks) {
     if (state === 'count') bigText(String(Math.ceil(cd)), ch / 2, ch * 0.24, '#ffd23f');
     else if (state === 'race' && raceT < 0.8) bigText('¡YA!', ch / 2, ch * 0.24, '#ffd23f');
     if (me && me.finished && !shown) bigText(mode === 'rally' ? fmtTime(me.ft) : arc ? '¡TRAMO SUPERADO!' : 'META', ch / 2, ch * 0.16, '#ffffff');
+    if (crtOn) renderCRT();
   }
 
   function resize() {
@@ -948,6 +976,7 @@ export function createGame(cv, hooks) {
     render,
     resize,
     hud,
+    setCRT(on) { crtOn = !!on; },
     info,
     get state() { return state; },
     get arcade() { return arc; },

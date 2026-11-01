@@ -108,6 +108,14 @@ export const ARCADE = {
   countdown: 9,      // segundos para decidir si continúas
 };
 
+// Efecto de monitor de recreativa (sin curvatura): barras horizontales, rejilla de fósforo y viñeta
+export const CRT = {
+  period: 3,       // separación entre barras, en px de pantalla
+  lines: 0.22,     // opacidad de las barras oscuras
+  mask: 0.05,      // intensidad de las franjas verticales rojo, verde y azul
+  vignette: 0.35,  // oscurecimiento de las esquinas
+};
+
 export function carSpec(id, up = {}) {
   const M = CAR_MODELS[id] || CAR_MODELS.compacto, l = (k) => up[k] || 0;
   return {
