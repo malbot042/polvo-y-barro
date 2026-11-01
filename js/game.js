@@ -10,7 +10,7 @@ import { drawDecorIso, decorTop, hasBillboard, drawConeIso, drawNitroIso, drawLa
 
 export const RIVALS = [
   { name: 'Lobo', livery: RIVAL_LIVERIES[0], skill: 0.95, num: '2', model: 'coupe' },
-  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.93, num: '3', model: 'raid' },
+  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.93, num: '3', model: 'berlina' },
   { name: 'Rayo', livery: RIVAL_LIVERIES[2], skill: 0.9, num: '4', model: 'compacto' },
 ];
 const BEST_KEY = 'pyb-best-v1';
@@ -326,7 +326,7 @@ export function createGame(cv, hooks) {
       }
     } else {
       let fs = c.vx * fx + c.vy * fy, ls = c.vx * rx + c.vy * ry;
-      // superficie corregida por el coche: el raid pierde menos fuera de pista; la lluvia quita agarre
+      // superficie corregida por el coche: la berlina pierde menos fuera de pista; la lluvia quita agarre
       let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
       if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
       if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') gripS *= COND.grip;
@@ -399,7 +399,7 @@ export function createGame(cv, hooks) {
     // efectos: marcas, polvo, agua, humo de daños
     const sp = Math.hypot(c.vx, c.vy);
     const sliding = c.air <= 0 && sp > 40 && (Math.abs(c.ls) > 38 || (inp.hb && sp > 60) || (inp.b && c.fs > 90));
-    const ax = c.model === 'coupe' || c.model === 'raid' ? 10 : 8.6, wy = c.model === 'raid' ? 7.4 : 6.9;
+    const ax = c.model === 'coupe' || c.model === 'berlina' ? 10 : 8.6, wy = c.model === 'berlina' ? 7.0 : 6.9;
     const rlx = c.x - fx * ax + rx * wy, rly = c.y - fy * ax + ry * wy, rrx = c.x - fx * ax - rx * wy, rry = c.y - fy * ax - ry * wy;
     const soft = sk === 'barro' || sk === 'nieve' || sk === 'off' || sk === 'verge';
     if (!sim && c.air <= 0 && !c.lv && (sliding || (soft && sp > 25)) && c.rl) {

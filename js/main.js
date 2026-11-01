@@ -17,12 +17,13 @@ let testDef = null;
 let mode = 'rally';
 let carColor = '#e4572e';
 let carId = store.get('pyb-car', 'paleta');
+const oldModel = (m) => (m === 'raid' ? 'berlina' : m);   // la pick-up de raid pasó a ser la berlina
 if (!LIVERIES[carId]) carId = 'paleta';
-let quickModel = CAR_MODELS[store.get('pyb-model', 'compacto')] ? store.get('pyb-model', 'compacto') : 'compacto';
+let quickModel = CAR_MODELS[oldModel(store.get('pyb-model', 'compacto'))] ? oldModel(store.get('pyb-model', 'compacto')) : 'compacto';
 let quickCond = CONDITIONS[store.get('pyb-cond', 'seco')] ? store.get('pyb-cond', 'seco') : 'seco';
 let inEvent = null;          // prueba del campeonato en curso
 let arcRun = null;           // partida de recreativa en curso: { stage, score, carry, continues }
-let arcModel = CAR_MODELS[store.get('pyb-amodel', 'compacto')] ? store.get('pyb-amodel', 'compacto') : 'compacto';
+let arcModel = CAR_MODELS[oldModel(store.get('pyb-amodel', 'compacto'))] ? oldModel(store.get('pyb-amodel', 'compacto')) : 'compacto';
 let contTimer = null;
 const career = createCareer();
 function playerLivery() { const L = LIVERIES[carId]; return { ...L, base: L.base || carColor }; }

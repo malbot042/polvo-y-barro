@@ -16,6 +16,10 @@ const valid = (s) => s && typeof s.money === 'number' && s.cars && s.cars[s.car]
 
 export function createCareer() {
   let s = store.get(KEY, null);
+  if (s && s.cars && s.cars.raid) {   // la pick-up de raid pasó a ser la berlina
+    s.cars.berlina = s.cars.berlina || s.cars.raid; delete s.cars.raid;
+    if (s.car === 'raid') s.car = 'berlina';
+  }
   if (!valid(s)) s = fresh();
   const save = () => store.set(KEY, s);
   const cur = () => s.cars[s.car];

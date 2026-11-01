@@ -69,12 +69,12 @@ export const PHYS = {
 // max/acc/grip: multiplicadores. off: aguante fuera de pista (barro, arena, nieve honda…).
 // mass: peso en los choques. armor: resistencia a los daños. r: radio de colisión.
 export const CAR_MODELS = {
-  compacto: { label: 'Compacto 4x4', desc: 'Equilibrado: tracción total y buen agarre en cualquier superficie.', price: 0,
+  compacto: { label: 'Compacto turbo 4x4', desc: 'Equilibrado y ágil: tracción total y buen agarre en cualquier superficie.', price: 0,
     max: 1.0, acc: 1.0, grip: 1.0, off: 1.0, mass: 1.0, armor: 1.0, r: 10 },
-  coupe: { label: 'Coupé clásico', desc: 'El más rápido en asfalto y tierra firme. Se va de atrás y sufre con los golpes.', price: 3500,
+  coupe: { label: 'Coupé turbo 4x4', desc: 'El más rápido en asfalto y tierra firme. Nervioso de atrás y sufre con los golpes.', price: 3500,
     max: 1.08, acc: 1.06, grip: 0.86, off: 0.85, mass: 0.95, armor: 0.85, r: 10 },
-  raid: { label: 'Pick-up de raid', desc: 'Pesado y menos rápido, pero apenas pierde en barro, arena o nieve y aguanta los golpes.', price: 3000,
-    max: 0.91, acc: 0.9, grip: 1.04, off: 1.45, mass: 1.4, armor: 1.5, r: 11 },
+  berlina: { label: 'Berlina turbo 4x4', desc: 'Pesada y robusta: algo menos rápida, pero pierde menos en barro, arena o nieve y aguanta mejor los golpes.', price: 3000,
+    max: 0.96, acc: 0.94, grip: 1.06, off: 1.3, mass: 1.25, armor: 1.35, r: 10.5 },
 };
 
 export const UPGRADES = {

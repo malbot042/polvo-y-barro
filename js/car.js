@@ -1,24 +1,28 @@
-// Coches de rally. Tres modelos (compacto, coupé y pick-up de raid), cada uno con su silueta
+// Coches de rally de Grupo A de finales de los 80 y principios de los 90. Tres modelos (compacto,
+// coupé y berlina, todos turbo 4x4), cada uno con su silueta
 // y sus detalles. La vista cenital se pre-dibuja en alta resolución (sprite) por modelo +
 // decoración + dorsal, y en tiempo real se le añaden suciedad y daños. En el juego, el coche
 // se ve en isométrico montando capas de ese sprite a distintas alturas (sprite stacking).
-import { rng, lerp, shade, isoView } from './util.js';
+import { rng, lerp, shade, isoView, ISO_Z } from './util.js';
 
 const K = 8;              // resolución del sprite: px por unidad de mundo
 const SW = 40, SH = 24;   // tamaño del sprite en unidades de mundo
 
-// Decoraciones elegibles. base null = color de la paleta activa.
+// Decoraciones elegibles, con los colores clásicos de los rallies de finales de los 80 y principios
+// de los 90 (sin marcas ni patrocinadores reales). base null = color de la paleta activa.
 export const LIVERIES = {
-  paleta:  { label: 'Color de la paleta', base: null,      sec: '#ffffff', ter: '#15171a', pat: 'swoosh',  pod: true },
-  grava:   { label: 'Blanco y rojo',      base: '#f1efe8', sec: '#d6402b', ter: '#1d2a44', pat: 'stripes', pod: true },
-  glaciar: { label: 'Azul glaciar',       base: '#1f5fa8', sec: '#8fd6f2', ter: '#ffffff', pat: 'split',   pod: false },
-  oliva:   { label: 'Verde oliva',        base: '#55642f', sec: '#e8b23a', ter: '#121212', pat: 'chevron', pod: true },
-  carbono: { label: 'Negro y naranja',    base: '#25272c', sec: '#ff6a1f', ter: '#e9e9e9', pat: 'swoosh',  pod: false },
+  paleta:   { label: 'Color de la paleta',          base: null,      sec: '#ffffff', ter: '#15171a', pat: 'band',    pod: true },
+  franjas:  { label: 'Blanco con franjas azul y rojo', base: '#f3f1ea', sec: '#1d3f8f', ter: '#d4322c', pat: 'sash',  pod: true },
+  azul:     { label: 'Azul y amarillo',             base: '#1c3f94', sec: '#f5c400', ter: '#ffffff', pat: 'band',    pod: true },
+  rojo:     { label: 'Rojo y blanco',               base: '#c8202a', sec: '#ffffff', ter: '#15171a', pat: 'swoosh',  pod: false },
+  oro:      { label: 'Negro y oro',                 base: '#16171a', sec: '#c9a43a', ter: '#c9a43a', pat: 'pin',     pod: true },
+  verde:    { label: 'Verde y blanco',              base: '#1f5a3a', sec: '#f2efe6', ter: '#e0b23a', pat: 'split',   pod: false },
+  naranja:  { label: 'Blanco y naranja',            base: '#f3f1ea', sec: '#ef7a1a', ter: '#1d2a44', pat: 'stripes', pod: true },
 };
 export const RIVAL_LIVERIES = [
-  { base: '#2f6fd6', sec: '#ffffff', ter: '#0d1b33', pat: 'stripes', pod: false },
-  { base: '#2d9d5b', sec: '#f4f1e6', ter: '#0f2a1c', pat: 'split',   pod: true },
-  { base: '#8a4fd1', sec: '#ffb020', ter: '#1a1030', pat: 'chevron', pod: false },
+  { base: '#1f4fa8', sec: '#ffffff', ter: '#d4322c', pat: 'stripes', pod: true },
+  { base: '#f1efe8', sec: '#c8202a', ter: '#15171a', pat: 'sash',    pod: false },
+  { base: '#f2b705', sec: '#15171a', ter: '#ffffff', pat: 'band',    pod: true },
 ];
 export const GHOST_LIVERY = { base: '#e8eef3', sec: '#b8c4cf', ter: '#8795a3', pat: 'stripes', pod: false };
 export const DIRT = { barro: '#4e321c', polvo: '#b08657', nieve: '#f4f8fb' };
@@ -35,10 +39,10 @@ const MODELS = {
       ['L', -6.6, -6.8], ['Q', -7.2, -7.8, -10.0, -7.9], ['Q', -12.8, -7.8, -13.4, -6.9], ['L', -15.6, -6.6], ['Q', -16.5, -6.2, -16.4, -4.4], ['L', -16.4, 0]],
     axle: [10, -10], wy: 6.7, tire: [6.2, 3.2], front: 16.5, rear: -16.4, lamps: [-16.7, 2.6, 3.0],
   },
-  raid: {
-    half: [[16.6, -5.0], ['Q', 16.8, -7.2, 15.2, -7.4], ['L', 13.8, -7.6], ['Q', 13.4, -8.7, 10.5, -8.8], ['Q', 7.6, -8.7, 7.2, -7.8],
-      ['L', -7.3, -7.8], ['Q', -7.7, -8.8, -10.5, -8.9], ['Q', -13.4, -8.8, -13.8, -7.9], ['L', -16.4, -7.8], ['Q', -16.9, -7.6, -16.9, -6.4], ['L', -16.9, 0]],
-    axle: [10.5, -10.5], wy: 7.4, tire: [7.4, 3.9], front: 16.6, rear: -16.9, lamps: [-17.2, 4.6, 2.2],
+  berlina: {
+    half: [[16.6, -3.6], ['Q', 16.7, -6.0, 15.1, -6.5], ['L', 13.6, -6.7], ['Q', 13.0, -8.0, 10.2, -8.1], ['Q', 7.4, -8.0, 6.8, -7.1],
+      ['L', -7.0, -7.2], ['Q', -7.6, -8.2, -10.4, -8.3], ['Q', -13.2, -8.2, -13.8, -7.3], ['L', -16.0, -7.0], ['Q', -16.9, -6.6, -16.8, -4.6], ['L', -16.8, 0]],
+    axle: [10.2, -10.4], wy: 7.0, tire: [6.4, 3.4], front: 16.6, rear: -16.8, lamps: [-17.1, 3.4, 2.8],
   },
 };
 const model = (id) => MODELS[id] || MODELS.compacto;
@@ -90,6 +94,29 @@ function pattern(c, L) {
       c.beginPath(); c.moveTo(18, -10); c.lineTo(4, -10); c.lineTo(-6, 10); c.lineTo(18, 10); c.closePath(); c.fill();
       c.strokeStyle = ter; c.lineWidth = 0.7;
       c.beginPath(); c.moveTo(4.6, -10); c.lineTo(-5.4, 10); c.stroke();
+      break;
+    }
+    case 'band': {
+      // banda ancha a lo largo del coche con filetes
+      c.fillStyle = sec; c.fillRect(-18, -3.6, 36, 7.2);
+      c.fillStyle = ter; c.fillRect(-18, -4.4, 36, 0.6); c.fillRect(-18, 3.8, 36, 0.6);
+      c.fillStyle = sec; c.fillRect(-18, -9.8, 36, 1.4); c.fillRect(-18, 8.4, 36, 1.4);
+      break;
+    }
+    case 'sash': {
+      // tres franjas en diagonal que cruzan el coche
+      const bands = [[sec, 0, 3.4], [ter, 3.9, 1.6], [sec, 6.0, 1.2]];
+      for (const [col, o, w] of bands) {
+        c.fillStyle = col;
+        c.beginPath(); c.moveTo(9 - o, -10); c.lineTo(9 - o - w, -10); c.lineTo(-7 - o - w, 10); c.lineTo(-7 - o, 10); c.closePath(); c.fill();
+      }
+      break;
+    }
+    case 'pin': {
+      // filetes finos dobles, como las decoraciones de los 70-80
+      c.fillStyle = sec;
+      for (const s of [-1, 1]) { c.fillRect(-18, s * 7.4 - 0.25, 36, 0.5); c.fillRect(-18, s * 6.4 - 0.15, 36, 0.3); c.fillRect(-18, s * 1.6 - 0.15, 36, 0.3); }
+      c.fillRect(9.5, -7.4, 0.5, 14.8); c.fillRect(-12.5, -7.4, 0.5, 14.8);
       break;
     }
     case 'chevron': {
@@ -193,6 +220,14 @@ function bonnetShine(c, x, y) {
   c.fillStyle = rg; c.fillRect(x - 5, y - 5, 10, 10);
 }
 
+// Alerón trasero sobre patas, con el plano del color secundario
+function rearWing(c, L, x, hw) {
+  c.fillStyle = '#16181c'; c.beginPath(); c.roundRect(x - 1.3, -hw, 2.6, hw * 2, 0.5); c.fill();
+  c.fillStyle = L.sec; c.fillRect(x - 0.8, -hw + 0.7, 1.5, hw * 2 - 1.4);
+  c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(x - 0.8, -hw + 0.7, 0.4, hw * 2 - 1.4);
+  c.fillStyle = '#0c0d0f'; c.fillRect(x - 1.7, -hw - 0.4, 3.4, 0.85); c.fillRect(x - 1.7, hw - 0.45, 3.4, 0.85);
+}
+
 const DETAILS = {
   compacto(c, L, num) {
     c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
@@ -221,7 +256,7 @@ const DETAILS = {
     else { c.fillStyle = '#e23b2e'; c.beginPath(); c.roundRect(15.2, 1.6, 0.9, 1.4, 0.3); c.fill(); c.fillStyle = '#111316'; c.fillRect(14.95, -2.6, 0.5, 5.2); }
   },
 
-  // Coupé de los 70-80: capó largo con abultamiento, cabina retrasada, cola de pato
+  // Coupé turbo de Grupo A: capó largo con abultamiento y toma de aire, cabina retrasada, alerón
   coupe(c, L, num) {
     c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
     c.beginPath(); c.moveTo(5.0, -5.5); c.lineTo(15.4, -5.2); c.moveTo(5.0, 5.5); c.lineTo(15.4, 5.2); c.stroke();
@@ -238,54 +273,36 @@ const DETAILS = {
     for (const s of [-1, 1]) { c.beginPath(); c.moveTo(0.4, s * 5.7); c.lineTo(-7.4, s * 5.3); c.lineTo(-7.4, s * 6.0); c.lineTo(0.1, s * 6.5); c.closePath(); c.fill(); }
     roof(c, L, -7.4, 0.5, 5.3, 1.8);
     roofNumber(c, L, -3.4, num, 4.6, 6.4);
-    // luneta inclinada con persianas
     glass(c, -11.6, -7.4, 5.2, 4.6, true);
-    c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 0.35;
-    for (let x = -11.0; x < -7.6; x += 0.8) { c.beginPath(); c.moveTo(x, -4.5); c.lineTo(x, 4.5); c.stroke(); }
-    // cola de pato
-    c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(-15.2, -6.2, 0.5, 12.4);
-    c.fillStyle = L.sec; c.fillRect(-16.1, -5.8, 0.9, 11.6);
-    // faros escamoteables (cerrados) y antiniebla
-    for (const s of [-1, 1]) {
-      c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.roundRect(13.2, s > 0 ? 3.4 : -5.8, 2.4, 2.4, 0.4); c.fill();
-      c.fillStyle = '#f7f2d2'; c.beginPath(); c.arc(16.3, s * 4.4, 0.85, 0, 7); c.fill();
-    }
+    rearWing(c, L, -14.9, 7.4);
+    headlights(c, 16.2, 3.4, 5.6, 1.6);
+    for (const s of [-1, 1]) { c.fillStyle = '#f7f2d2'; c.beginPath(); c.arc(16.0, s * 1.6, 0.6, 0, 7); c.fill(); }
     if (L.pod) lightPod(c, 17.0, 3.8);
   },
 
-  // Pick-up de raid: cabina corta, caja con ruedas de repuesto, arco de seguridad y snorkel
-  raid(c, L, num) {
-    c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 0.2;
-    c.beginPath(); c.moveTo(8.0, -6.6); c.lineTo(15.8, -6.4); c.lineTo(15.8, 6.4); c.lineTo(8.0, 6.6); c.stroke();
-    vents(c, 10.6, 2.0, 3.6);
-    bonnetShine(c, 12.5, -3.5);
-    glass(c, 4.6, 7.8, 6.4, 6.9);
-    c.fillStyle = 'rgba(255,255,255,.18)';
-    c.beginPath(); c.moveTo(7.3, -5.6); c.lineTo(7.7, -4.4); c.lineTo(5.3, 4.6); c.lineTo(4.9, 3.4); c.closePath(); c.fill();
-    roof(c, L, -3.2, 4.7, 6.8, 1);
-    roofNumber(c, L, 0.6, num, 5.2, 7.2);
-    // baca con faros
-    c.strokeStyle = '#1a1c20'; c.lineWidth = 0.5; c.beginPath(); c.roundRect(-2.8, -6.5, 7.1, 13, 0.6); c.stroke();
-    if (L.pod) lightPod(c, 4.6, 5.6);
-    // caja de carga
-    c.fillStyle = '#1d2024'; c.beginPath(); c.roundRect(-15.8, -6.9, 12.0, 13.8, 0.6); c.fill();
-    c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 0.25;
-    for (let y = -5.8; y < 6; y += 1.6) { c.beginPath(); c.moveTo(-15.5, y); c.lineTo(-4.2, y); c.stroke(); }
-    for (const y of [-3.2, 3.2]) {
-      c.fillStyle = '#0d0e10'; c.beginPath(); c.arc(-10.4, y, 3.0, 0, 7); c.fill();
-      c.strokeStyle = '#30343a'; c.lineWidth = 0.5; for (let r = 1; r < 3; r += 0.8) { c.beginPath(); c.arc(-10.4, y, r, 0, 7); c.stroke(); }
-      c.fillStyle = '#6b7078'; c.beginPath(); c.arc(-10.4, y, 0.8, 0, 7); c.fill();
-    }
-    // arco de seguridad
-    c.strokeStyle = L.sec; c.lineWidth = 0.9; c.beginPath(); c.moveTo(-4.4, -6.6); c.lineTo(-4.4, 6.6); c.stroke();
-    c.beginPath(); c.moveTo(-4.4, -6.2); c.lineTo(-8.4, -5.6); c.moveTo(-4.4, 6.2); c.lineTo(-8.4, 5.6); c.stroke();
-    // snorkel
-    c.fillStyle = '#16181c'; c.beginPath(); c.roundRect(5.4, 7.0, 3.8, 1.2, 0.5); c.fill();
-    c.beginPath(); c.arc(9.0, 7.6, 0.9, 0, 7); c.fill();
-    // defensa delantera
-    c.fillStyle = '#1a1c20'; c.beginPath(); c.roundRect(16.4, -6.2, 1.0, 12.4, 0.4); c.fill();
-    headlights(c, 16.2, 4.2, 6.6, 1.4);
-    mirrors(c, L, 6.6, 8.6);
+  // Berlina turbo 4x4: cuatro puertas, toma de aire en el capó, techo largo y gran alerón en el maletero
+  berlina(c, L, num) {
+    c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
+    c.beginPath(); c.moveTo(7.4, -5.8); c.lineTo(15.6, -5.5); c.moveTo(7.4, 5.8); c.lineTo(15.6, 5.5); c.stroke();
+    c.beginPath(); c.moveTo(-11.2, -5.6); c.lineTo(-11.2, 5.6); c.stroke();
+    // toma de aire del intercooler
+    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(10.2, -2.0, 3.0, 4.0, 0.8); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(12.8, -1.7, 0.3, 3.4);
+    bonnetShine(c, 12, -3.4);
+    glass(c, 3.7, 7.4, 5.4, 6.1);
+    c.fillStyle = 'rgba(255,255,255,.2)';
+    c.beginPath(); c.moveTo(6.9, -4.6); c.lineTo(7.3, -3.5); c.lineTo(4.4, 3.8); c.lineTo(4.0, 2.7); c.closePath(); c.fill();
+    c.fillStyle = '#18232e';
+    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(3.7, s * 6.1); c.lineTo(-7.2, s * 5.8); c.lineTo(-7.2, s * 6.5); c.lineTo(3.3, s * 6.9); c.closePath(); c.fill(); }
+    c.fillStyle = L.base; for (const s of [-1, 1]) c.fillRect(-2.0, s > 0 ? 5.8 : -6.9, 0.7, 1.1);   // montante central
+    roof(c, L, -7.2, 3.7, 5.7);
+    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(1.4, -1.5, 1.6, 3.0, 0.5); c.fill();
+    roofNumber(c, L, -2.0, num);
+    glass(c, -11.0, -7.2, 5.5, 5.0, true);
+    rearWing(c, L, -15.0, 8.0);
+    headlights(c, 16.2, 3.6, 6.0, 1.8);
+    if (L.pod) lightPod(c, 17.0, 4.4);
+    else { for (const s of [-1, 1]) { c.fillStyle = '#f7f2d2'; c.beginPath(); c.arc(16.1, s * 1.8, 0.6, 0, 7); c.fill(); } }
   },
 };
 
@@ -294,7 +311,7 @@ function makeSprite(L, num, id) {
   c.fillStyle = '#141619';
   const [rx] = [M.axle[1]];
   for (const s of [-1, 1]) c.fillRect(rx - 3.6, s > 0 ? M.wy - 1.6 : -M.wy - 1.4, 0.8, 3);   // faldillas
-  if (id !== 'raid') mirrors(c, L, id === 'coupe' ? 2.4 : 4.2, id === 'coupe' ? 7.4 : 7.9);
+  mirrors(c, L, id === 'coupe' ? 2.4 : id === 'berlina' ? 3.4 : 4.2, id === 'coupe' ? 7.4 : id === 'berlina' ? 8.0 : 7.9);
   bodyPath(c, M); c.fillStyle = L.base; c.fill();
   c.save(); bodyPath(c, M); c.clip(); pattern(c, L); shadeBody(c, M); c.restore();
   bodyPath(c, M); c.lineWidth = 0.35; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
@@ -428,21 +445,29 @@ const BODY_Z = 5.5, ROOF_Z = 9.5;   // altura del capó y del techo
 const CABIN = {
   compacto: { base: [-9.9, 6.7, 5.9], top: [-6.6, 2.7, 5.6] },
   coupe:    { base: [-11.6, 4.9, 5.7], top: [-7.4, 0.5, 5.3] },
-  raid:     { base: [-3.6, 7.8, 6.9], top: [-3.2, 4.7, 6.8] },
+  berlina:  { base: [-11.0, 7.4, 6.1], top: [-7.2, 3.7, 5.7] },
 };
 export const CAR_TOP = ROOF_Z;
 
+// Capas laterales: la carrocería con su decoración, oscurecida en `dark` (null = negro de los bajos)
 const sides = new Map();
-function side(id, col) {
-  const k = id + col;
+function side(id, L, dark) {
+  const k = [id, L.base, L.sec, L.ter, L.pat, dark].join('|');
   let cv = sides.get(k);
   if (!cv) {
-    if (sides.size > 60) sides.clear();
+    if (sides.size > 80) sides.clear();
     cv = document.createElement('canvas');
     cv.width = SW * KS; cv.height = SH * KS;
     const c = cv.getContext('2d');
     c.setTransform(KS, 0, 0, KS, (SW * KS) / 2, (SH * KS) / 2);
-    bodyPath(c, model(id)); c.fillStyle = col; c.fill();
+    const M = model(id);
+    bodyPath(c, M);
+    if (dark == null) { c.fillStyle = '#17191c'; c.fill(); }
+    else {
+      c.fillStyle = L.base; c.fill();
+      c.save(); bodyPath(c, M); c.clip(); pattern(c, L);
+      c.fillStyle = `rgba(0,0,0,${dark})`; c.fillRect(-SW / 2, -SH / 2, SW, SH); c.restore();
+    }
     sides.set(k, cv);
   }
   return cv;
@@ -473,8 +498,9 @@ export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
       else c.fillRect(x - tl / 2, y - tw / 2, tl, tw);
     }
   }
-  const lo = side(id, '#17191c'), mid = side(id, shade(L.base, 0.52)), hi = side(id, shade(L.base, 0.74));
-  for (let z = 1.6; z < BODY_Z; z += 0.5) { at(z); c.drawImage(z < 2.2 ? lo : z < 3.8 ? mid : hi, -SW / 2, -SH / 2, SW, SH); }
+  const lo = side(id, L, null), mid = side(id, L, 0.45), hi = side(id, L, 0.22);
+  const step = Math.min(0.5, 0.9 / (V.Z * ISO_Z));   // capas a menos de 1 px en pantalla: sin escalones al ampliar
+  for (let z = 1.6; z < BODY_Z; z += step) { at(z); c.drawImage(z < 2.2 ? lo : z < 3.8 ? mid : hi, -SW / 2, -SH / 2, SW, SH); }
   const [lx, ly, len] = M.lamps;
   at(BODY_Z - 1.2);
   c.fillStyle = car.brk ? '#ff3b2a' : '#8e1a14';
@@ -498,7 +524,7 @@ export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
     c.globalAlpha = 1;
   }
   const glassCol = '#1c2833', pillar = shade(L.base, 0.68);
-  for (let z = BODY_Z + 0.5; z < ROOF_Z; z += 0.5) {
+  for (let z = BODY_Z + step; z < ROOF_Z; z += step) {
     const t = (z - BODY_Z) / (ROOF_Z - BODY_Z);
     const x0 = lerp(cab.base[0], cab.top[0], t), x1 = lerp(cab.base[1], cab.top[1], t), hw = lerp(cab.base[2], cab.top[2], t);
     at(z);

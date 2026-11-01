@@ -46,9 +46,9 @@ Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noc
 
   | Coche | Precio | Carácter |
   |---|---|---|
-  | Compacto 4x4 | de serie | equilibrado |
-  | Coupé clásico | $3.500 | el más rápido en firme, poco agarre, frágil |
-  | Pick-up de raid | $3.000 | lento, pero apenas pierde fuera de pista y aguanta golpes |
+  | Compacto turbo 4x4 | de serie | equilibrado |
+  | Coupé turbo 4x4 | $3.500 | el más rápido en firme, poco agarre, frágil |
+  | Berlina turbo 4x4 | $3.000 | algo más lenta, pero pierde menos fuera de pista y aguanta golpes |
 
 - **Mejoras** por coche, con 4 niveles cada una ($500, $900, $1.500 y $2.400): motor, neumáticos, suspensión, nitro y blindaje.
 - **Daños**: los golpes contra obstáculos y coches, y los aterrizajes duros, quitan velocidad punta, desvían la dirección y hacen que el coche eche humo. En el campeonato se arrastran de una prueba a otra hasta que pagas el taller ($12 por punto).
@@ -87,7 +87,7 @@ El botón *CRT* (junto a los de sonido) simula una pantalla de recreativa sin cu
 
 ### Coches
 
-Cada coche es un compacto de rally, con aletas ensanchadas, alerón, toma de aire en el techo, rejillas en el capó, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay cinco decoraciones para elegir. Se dibujan una vez en alta resolución vistos desde arriba y, en el juego, se montan por capas a distintas alturas (ruedas, laterales, capó, cabina acristalada y techo) para verlos en tres cuartos. Se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
+Solo hay coches de rally de Grupo A de finales de los 80 y principios de los 90: un compacto, un coupé y una berlina, todos turbo 4x4, con aletas ensanchadas, alerón, tomas de aire, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay siete decoraciones con los colores clásicos de la época (blanco con franjas azul y rojo, azul y amarillo, rojo y blanco, negro y oro, verde y blanco, blanco y naranja, o el color de la paleta), sin marcas ni patrocinadores reales. La decoración se ve también en los laterales. Se dibujan una vez en alta resolución vistos desde arriba y, en el juego, se montan por capas a distintas alturas (ruedas, laterales, capó, cabina acristalada y techo) para verlos en tres cuartos. Se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
 
 ## Editor de circuitos
 
