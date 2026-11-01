@@ -69,7 +69,7 @@ BUILTIN_RAW.push(
 );
 
 // Vuelta al mundo: dos circuitos por continente. Las vueltas están elegidas para que la carrera
-// dure unos 1:20 con el piloto de referencia de la IA (compacto de serie, en seco).
+// dure unos 1:20 con el piloto de referencia de la IA (un Grupo A de serie, en seco).
 BUILTIN_RAW.push(
   // Europa
   mkTrack('Circuito de los Pirineos', 'circuito', 3, 'pradera',

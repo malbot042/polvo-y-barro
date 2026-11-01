@@ -3,15 +3,15 @@
 // simulados de los rivales en los rallies del campeonato y el modo recreativa
 // (cuenta atrás, controles que dan tiempo y puntos por derrapar).
 import { WW, WH, SP, M_PER_PX, ISO_C, clamp, wrapA, store, fmtTime, isoView } from './util.js';
-import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, carSpec } from './config.js';
+import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, DEFAULT_CAR, carSpec } from './config.js';
 import { buildTrack, nearestGlobal, idxAdd, trackKey } from './track.js';
-import { drawCarIso, drawCarShadowIso, carFront, RIVAL_LIVERIES, GHOST_LIVERY } from './car.js';
+import { drawCarIso, drawCarShadowIso, carFront, carWheels, carLivery, GHOST_LIVERY } from './car.js';
 import { drawDecorIso, decorTop, hasBillboard, drawConeIso, drawNitroIso, drawLampIso, LAMP_H, drawRampIso, drawArchIso, bridgePieces, drawBridgePiece } from './iso.js';
 
 export const RIVALS = [
-  { name: 'Lobo', livery: RIVAL_LIVERIES[0], skill: 0.95, num: '2', model: 'coupe' },
-  { name: 'Niebla', livery: RIVAL_LIVERIES[1], skill: 0.93, num: '3', model: 'berlina' },
-  { name: 'Rayo', livery: RIVAL_LIVERIES[2], skill: 0.9, num: '4', model: 'compacto' },
+  { name: 'Lobo', livery: carLivery('lancia-delta-integrale'), skill: 0.95, num: '2', model: 'lancia-delta-integrale' },
+  { name: 'Niebla', livery: carLivery('mitsubishi-lancer-evolution'), skill: 0.93, num: '3', model: 'mitsubishi-lancer-evolution' },
+  { name: 'Rayo', livery: carLivery('toyota-celica-gt-four'), skill: 0.9, num: '4', model: 'toyota-celica-gt-four' },
 ];
 const BEST_KEY = 'pyb-best-v1';
 const NO_INPUT = { t: 0, b: 0, s: 0, n: 0, hb: 0 };
@@ -48,7 +48,7 @@ export function createGame(cv, hooks) {
   const layers = { g: mk(), t: mk() };
   const light = document.createElement('canvas'), lctx = light.getContext('2d');
   let T = null, def = null, key = '', mode = 'rally', state = 'idle';
-  let cfg = { cond: 'seco', me: { model: 'compacto' }, rivals: null, field: false, event: null };
+  let cfg = { cond: 'seco', me: { model: DEFAULT_CAR }, rivals: null, field: false, event: null };
   let COND = CONDITIONS.seco;
   let cd = 0, raceT = 0, doneT = 0, shown = false, finCount = 0;
   let cars = [], parts = [], skids = [], cones = [], nitros = [], ghost = null, rec = [], recT = 0, flash = null;
@@ -80,14 +80,14 @@ export function createGame(cv, hooks) {
     return c.p;
   }
   const ranking = () => [...cars].sort((a, b) => score(b) - score(a));
-  const bestKey = () => key + '|' + (cfg.me.model || 'compacto');
+  const bestKey = () => key + '|' + (cfg.me.model || DEFAULT_CAR);
   const bestFor = () => (store.get(BEST_KEY, {}) || {})[bestKey()] || null;
   function saveBest(r) {
     const all = store.get(BEST_KEY, {}) || {};
     all[bestKey()] = r;
     if (!store.set(BEST_KEY, all)) { all[bestKey()] = { t: r.t, splits: r.splits }; store.set(BEST_KEY, all); }
   }
-  const myLivery = () => hooks.livery();
+  const myLivery = () => hooks.livery(cfg.me.model);
 
   function info() {
     if (!T) return null;
@@ -102,7 +102,7 @@ export function createGame(cv, hooks) {
   }
 
   function makeCar(d, idx, lane) {
-    const s = T.S[idx], spec = d.spec || carSpec(d.model || 'compacto');
+    const s = T.S[idx], spec = d.spec || carSpec(d.model || DEFAULT_CAR);
     return {
       ...d, spec, model: spec.model, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
       idx, nd: 0, lv: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
@@ -326,7 +326,7 @@ export function createGame(cv, hooks) {
       }
     } else {
       let fs = c.vx * fx + c.vy * fy, ls = c.vx * rx + c.vy * ry;
-      // superficie corregida por el coche: la berlina pierde menos fuera de pista; la lluvia quita agarre
+      // superficie corregida por el coche: los coches de tierra pierden menos fuera de pista; la lluvia quita agarre
       let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
       if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
       if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') gripS *= COND.grip;
@@ -399,7 +399,7 @@ export function createGame(cv, hooks) {
     // efectos: marcas, polvo, agua, humo de daños
     const sp = Math.hypot(c.vx, c.vy);
     const sliding = c.air <= 0 && sp > 40 && (Math.abs(c.ls) > 38 || (inp.hb && sp > 60) || (inp.b && c.fs > 90));
-    const ax = c.model === 'coupe' || c.model === 'berlina' ? 10 : 8.6, wy = c.model === 'berlina' ? 7.0 : 6.9;
+    const { ax, wy } = carWheels(c.model);
     const rlx = c.x - fx * ax + rx * wy, rly = c.y - fy * ax + ry * wy, rrx = c.x - fx * ax - rx * wy, rry = c.y - fy * ax - ry * wy;
     const soft = sk === 'barro' || sk === 'nieve' || sk === 'off' || sk === 'verge';
     if (!sim && c.air <= 0 && !c.lv && (sliding || (soft && sp > 25)) && c.rl) {

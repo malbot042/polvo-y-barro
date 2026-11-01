@@ -1,11 +1,11 @@
 // Arranque: pestañas, paletas, juego libre, recreativa, campeonato, editor, controles y bucle principal.
 import { store, fmtTime, esc } from './util.js';
-import { SURF, THEME, CAR_MODELS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, carSpec } from './config.js';
+import { SURF, THEME, CAR_MODELS, ERAS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, DEFAULT_CAR, OLD_CARS, carSpec, carsByEra } from './config.js';
 import { BUILTIN_RAW, SEASON, ARCADE_STAGES } from './tracks.js';
 import { resolveDef, normalizeDef } from './track.js';
 import { createGame, RIVALS } from './game.js';
 import { createEditor } from './editor.js';
-import { LIVERIES, drawCarPreview } from './car.js';
+import { LIVERIES, drawCarPreview, carLivery } from './car.js';
 import { createAudio } from './audio.js';
 import { createCareer, POINTS } from './career.js';
 
@@ -16,17 +16,31 @@ let saved = (Array.isArray(store.get(SAVED_KEY, [])) ? store.get(SAVED_KEY, []) 
 let testDef = null;
 let mode = 'rally';
 let carColor = '#e4572e';
-let carId = store.get('pyb-car', 'paleta');
-const oldModel = (m) => (m === 'raid' ? 'berlina' : m);   // la pick-up de raid pasó a ser la berlina
-if (!LIVERIES[carId]) carId = 'paleta';
-let quickModel = CAR_MODELS[oldModel(store.get('pyb-model', 'compacto'))] ? oldModel(store.get('pyb-model', 'compacto')) : 'compacto';
+let carId = store.get('pyb-car', 'epoca');
+if (!LIVERIES[carId]) carId = 'epoca';
+// coche guardado: los genéricos de versiones anteriores pasan a su equivalente real
+const savedCar = (k) => { const m = store.get(k, DEFAULT_CAR); const id = OLD_CARS[m] || m; return CAR_MODELS[id] ? id : DEFAULT_CAR; };
+let quickModel = savedCar('pyb-model');
 let quickCond = CONDITIONS[store.get('pyb-cond', 'seco')] ? store.get('pyb-cond', 'seco') : 'seco';
 let inEvent = null;          // prueba del campeonato en curso
 let arcRun = null;           // partida de recreativa en curso: { stage, score, carry, continues }
-let arcModel = CAR_MODELS[oldModel(store.get('pyb-amodel', 'compacto'))] ? oldModel(store.get('pyb-amodel', 'compacto')) : 'compacto';
+let arcModel = savedCar('pyb-amodel');
 let contTimer = null;
 const career = createCareer();
-function playerLivery() { const L = LIVERIES[carId]; return { ...L, base: L.base || carColor }; }
+const curModel = () => (arcRun ? arcModel : inEvent ? career.carId : quickModel);
+// Decoración del jugador para un coche: sus colores de época o la elegida
+function liveryFor(id, m) { const L = LIVERIES[id]; return id === 'epoca' ? carLivery(m) : { ...L, base: L.base || carColor }; }
+function playerLivery(m = curModel()) { return liveryFor(carId, m); }
+// Desplegable de coches agrupado por épocas
+function fillCarSelect(sel, value) {
+  sel.replaceChildren();
+  for (const [era, ids] of carsByEra()) {
+    const g = document.createElement('optgroup'); g.label = ERAS[era];
+    for (const id of ids) g.append(new Option(`${CAR_MODELS[id].label} (${CAR_MODELS[id].year})`, id));
+    sel.append(g);
+  }
+  sel.value = value;
+}
 
 function trackList() {
   const l = BUILTIN.map((d, i) => ({ id: 'b' + i, label: d.name, def: d }));
@@ -198,8 +212,8 @@ $('p-track').addEventListener('change', loadSelected);
 document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { setModeUI(b.dataset.mode); loadSelected(); }));
 $('p-restart').addEventListener('click', () => { if (!arcRun) start(); });
 
-Object.entries(CAR_MODELS).forEach(([id, M]) => $('p-model').add(new Option(M.label, id)));
-$('p-model').value = quickModel;
+fillCarSelect($('p-model'), quickModel);
+$('a-model').addEventListener('change', () => { arcModel = $('a-model').value; store.set('pyb-amodel', arcModel); renderArcade(); });
 $('p-model').addEventListener('change', () => { quickModel = $('p-model').value; store.set('pyb-model', quickModel); drawCarUI(); loadSelected(); });
 Object.entries(CONDITIONS).forEach(([id, C]) => $('p-cond').add(new Option(C.label, id)));
 $('p-cond').value = quickCond;
@@ -212,10 +226,8 @@ const qualifies = (score) => score > 0 && (arcScores().length < 10 || score > ar
 
 function renderArcade() {
   $('a-cont').textContent = ARCADE.continues;
-  $('a-models').innerHTML = Object.entries(CAR_MODELS).map(([id, M]) => `<button type="button" data-amodel="${id}" aria-pressed="${id === arcModel}">${M.label}</button>`).join('');
-  $('a-models').querySelectorAll('[data-amodel]').forEach((b) => b.addEventListener('click', () => {
-    arcModel = b.dataset.amodel; store.set('pyb-amodel', arcModel); renderArcade();
-  }));
+  fillCarSelect($('a-model'), arcModel);
+  $('a-desc').textContent = CAR_MODELS[arcModel].desc;
   $('a-stages').innerHTML = ARCADE_STAGES.map((e) => {
     const d = builtinByName(e.track);
     return `<li><span>${esc(e.track)}<small>${d.type === 'tramo' ? 'Tramo' : e.laps + ' vueltas'} · ${CONDITIONS[e.cond].label}</small></span></li>`;
@@ -403,17 +415,17 @@ function renderChamp() {
   // clasificación
   $('c-stand').innerHTML = career.standings().map((s, i) => `<tr class="${s.name === 'Tú' ? 'me' : ''}"><td>${i + 1}</td><td>${esc(s.name)}</td><td>${s.pts} pts</td></tr>`).join('');
 
-  // garaje
-  $('c-models').innerHTML = Object.entries(CAR_MODELS).map(([id, M]) => {
-    const own = career.owned(id), sel = career.carId === id, sp = carSpec(id);
+  // garaje, agrupado por épocas
+  $('c-models').innerHTML = carsByEra().map(([era, ids]) => `<h5 class="era">${ERAS[era]}</h5>` + ids.map((id) => {
+    const M = CAR_MODELS[id], own = career.owned(id), sel = career.carId === id, sp = carSpec(id);
     return `<button type="button" class="model" data-model="${id}" aria-pressed="${sel}">
-      <canvas aria-hidden="true"></canvas><b>${M.label}</b>
+      <canvas aria-hidden="true"></canvas><b>${M.label}</b><small class="muted">${M.year}</small>
       ${statBar('Punta', (sp.max - 0.8) / 0.35)}${statBar('Agarre', (sp.grip - 0.75) / 0.4)}${statBar('Fuera pista', (sp.off - 0.7) / 0.9)}${statBar('Resistencia', (sp.armor - 0.7) / 0.9)}
       <span class="price">${sel ? 'En uso' : own ? 'Tuyo · usar' : '$' + M.price.toLocaleString('es-ES')}</span></button>`;
-  }).join('');
+  }).join('')).join('');
   $('c-models').querySelectorAll('.model').forEach((b) => {
     const id = b.dataset.model;
-    drawCarPreview(b.querySelector('canvas'), playerLivery(), '1', id);
+    drawCarPreview(b.querySelector('canvas'), playerLivery(id), '1', id);
     b.addEventListener('click', () => {
       if (career.owned(id)) { career.selectCar(id); chHint(`Ahora corres con el ${CAR_MODELS[id].label}. ${CAR_MODELS[id].desc}`); }
       else if (career.buyCar(id)) { chHint(`Has comprado el ${CAR_MODELS[id].label}. ${CAR_MODELS[id].desc}`); audio.sfx('pickup'); }
@@ -449,7 +461,7 @@ $('c-repair').addEventListener('click', () => {
 $('c-reset').addEventListener('click', () => {
   if (!resetArmed) { resetArmed = true; $('c-reset').textContent = 'Pulsa otra vez para borrar todo el progreso'; setTimeout(() => { resetArmed = false; $('c-reset').textContent = 'Borrar el campeonato y empezar de cero'; }, 4000); return; }
   resetArmed = false; career.resetAll(); $('c-reset').textContent = 'Borrar el campeonato y empezar de cero';
-  chHint('Campeonato borrado. Empiezas con $1.200 y el Compacto.'); renderChamp();
+  chHint(`Campeonato borrado. Empiezas con $1.200 y el ${CAR_MODELS[career.carId].label}.`); renderChamp();
 });
 
 // ---------- Teclado y táctil ----------
@@ -483,7 +495,7 @@ const carSel = $('p-car');
 Object.entries(LIVERIES).forEach(([id, L]) => carSel.add(new Option(L.label, id)));
 carSel.value = carId;
 function setCar(id) {
-  carId = LIVERIES[id] ? id : 'paleta';
+  carId = LIVERIES[id] ? id : 'epoca';
   carSel.value = carId;
   store.set('pyb-car', carId);
   drawCarUI();
@@ -502,12 +514,11 @@ Object.entries(LIVERIES).forEach(([id, L]) => {
 });
 function drawCarUI() {
   if (!garage) return;
-  const m = arcRun ? arcModel : inEvent ? career.carId : quickModel;
-  drawCarPreview($('p-car-prev'), playerLivery(), '1', m);
+  const m = curModel();
+  drawCarPreview($('p-car-prev'), playerLivery(m), '1', m);
   garage.querySelectorAll('.gcar').forEach((b) => {
-    const L = LIVERIES[b.dataset.car];
     b.setAttribute('aria-pressed', b.dataset.car === carId);
-    drawCarPreview(b.querySelector('canvas'), { ...L, base: L.base || carColor }, '1', m);
+    drawCarPreview(b.querySelector('canvas'), liveryFor(b.dataset.car, m), '1', m);
   });
 }
 

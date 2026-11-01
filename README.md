@@ -56,13 +56,7 @@ Los trazados están generados para no solaparse consigo mismos y tener curvas de
 Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noche o ambas. En las carreras compites contra tres rivales en pista. En los rallies corres solo y te comparas con los tiempos de los rivales, que se calculan simulando su pasada por el mismo tramo.
 
 - **Puntos**: 10 / 6 / 4 / 2. **Premios**: $1.500 / $900 / $550 / $300. Ganar la temporada da un bonus de $3.000.
-- **Garaje**: tres coches.
-
-  | Coche | Precio | Carácter |
-  |---|---|---|
-  | Compacto turbo 4x4 | de serie | equilibrado |
-  | Coupé turbo 4x4 | $3.500 | el más rápido en firme, poco agarre, frágil |
-  | Berlina turbo 4x4 | $3.000 | algo más lenta, pero pierde menos fuera de pista y aguanta golpes |
+- **Garaje**: los 31 coches campeones del mundo (ver *Coches*). Empiezas con el Fiat 131 Abarth y $1.200; los precios van de $600 por un clásico a $9.400 por un Rally1. Los rivales cambian de coche cada temporada: clásicos de los 70, luego Grupo A, WRC y, al final, Rally1.
 
 - **Mejoras** por coche, con 4 niveles cada una ($500, $900, $1.500 y $2.400): motor, neumáticos, suspensión, nitro y blindaje.
 - **Daños**: los golpes contra obstáculos y coches, y los aterrizajes duros, quitan velocidad punta, desvían la dirección y hacen que el coche eche humo. En el campeonato se arrastran de una prueba a otra hasta que pagas el taller ($12 por punto).
@@ -101,7 +95,18 @@ El botón *CRT* (junto a los de sonido) simula una pantalla de recreativa sin cu
 
 ### Coches
 
-Solo hay coches de rally de Grupo A de finales de los 80 y principios de los 90: un compacto, un coupé y una berlina, todos turbo 4x4, con aletas ensanchadas, alerón, tomas de aire, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay siete decoraciones con los colores clásicos de la época (blanco con franjas azul y rojo, azul y amarillo, rojo y blanco, negro y oro, verde y blanco, blanco y naranja, o el color de la paleta), sin marcas ni patrocinadores reales. La decoración se ve también en los laterales. Se dibujan una vez en alta resolución vistos desde arriba y, en el juego, se montan por capas a distintas alturas (ruedas, laterales, capó, cabina acristalada y techo) para verlos en tres cuartos. Se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
+Solo hay coches que han ganado el Mundial de Rallies, según la categoría [World Rally Championship–winning cars](https://en.wikipedia.org/wiki/Category:World_Rally_championship%E2%80%93winning_cars) de la Wikipedia en inglés: 31 coches, agrupados por épocas.
+
+| Época | Coches |
+|---|---|
+| Clásicos de los 70 | Alpine A110, Lancia Stratos, Fiat 131 Abarth, Ford Escort RS1800, Opel Ascona 400 |
+| Grupo B | Audi Quattro, Lancia Rally 037, Peugeot 205 Turbo 16, Peugeot 205 Turbo 16 E2 |
+| Grupo A | Lancia Delta HF, Delta HF 4WD y Delta Integrale, Toyota Celica GT-Four y Celica Turbo 4WD, Mitsubishi Lancer Evolution |
+| Kit Car | Škoda Felicia Kit Car, Citroën Xsara Kit Car |
+| World Rally Car | Subaru Impreza WRC, Ford Escort WRC, Toyota Corolla WRC, Peugeot 206 WRC, Citroën Xsara WRC, Ford Focus RS WRC, Citroën C4 WRC, Citroën DS3 WRC, Volkswagen Polo R WRC, Ford Fiesta WRC, Toyota Yaris WRC, Hyundai i20 Coupe WRC |
+| Rally1 híbridos | Toyota GR Yaris Rally1, Hyundai i20 N Rally1 |
+
+Las prestaciones salen de la época (los clásicos son de propulsión y más lentos; los Grupo B, los que más aceleran; los WRC y Rally1, los de más agarre) con retoques por coche, en `CAR_MODELS` dentro de `js/config.js`. Las carrocerías se generan a partir de sus proporciones (largo, ancho, aletas, tipo de carrocería, alerón, faros y tomas de aire) en `BODIES`, dentro de `js/car.js`. Son aproximaciones dibujadas, no reproducciones exactas. Cada coche lleva sus colores de época, sin logotipos ni patrocinadores reales; también hay siete decoraciones genéricas para elegir. La decoración se ve también en los laterales.
 
 ## Editor de circuitos
 

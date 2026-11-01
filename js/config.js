@@ -81,18 +81,123 @@ export const PHYS = {
   yaw: 0.3,      // giro extra (máx.) mientras el coche va cruzado
 };
 
-// ---------- Coches, mejoras y condiciones (fase 2) ----------
+// ---------- Coches, mejoras y condiciones ----------
 
+// Coches: solo los que han ganado el Mundial de Rallies (categoría «World Rally Championship–winning
+// cars» de la Wikipedia en inglés). Las prestaciones salen de su época y se retocan coche a coche.
 // max/acc/grip: multiplicadores. off: aguante fuera de pista (barro, arena, nieve honda…).
 // mass: peso en los choques. armor: resistencia a los daños. r: radio de colisión.
-export const CAR_MODELS = {
-  compacto: { label: 'Compacto turbo 4x4', desc: 'Equilibrado y ágil: tracción total y buen agarre en cualquier superficie.', price: 0,
-    max: 1.0, acc: 1.0, grip: 1.0, off: 1.0, mass: 1.0, armor: 1.0, r: 10 },
-  coupe: { label: 'Coupé turbo 4x4', desc: 'El más rápido en asfalto y tierra firme. Nervioso de atrás y sufre con los golpes.', price: 3500,
-    max: 1.08, acc: 1.06, grip: 0.86, off: 0.85, mass: 0.95, armor: 0.85, r: 10 },
-  berlina: { label: 'Berlina turbo 4x4', desc: 'Pesada y robusta: algo menos rápida, pero pierde menos en barro, arena o nieve y aguanta mejor los golpes.', price: 3000,
-    max: 0.96, acc: 0.94, grip: 1.06, off: 1.3, mass: 1.25, armor: 1.35, r: 10.5 },
+export const ERAS = {
+  clasico: 'Clásicos de los 70',
+  grupoB: 'Grupo B',
+  grupoA: 'Grupo A',
+  kit: 'Kit Car',
+  wrc: 'World Rally Car',
+  rally1: 'Rally1 híbridos',
 };
+export const CAR_MODELS = {
+  'alpine-a110': { label: 'Alpine A110', year: 1973, era: 'clasico', price: 600,
+    desc: 'Ligero y con el motor detrás: muy ágil, pero nervioso de atrás.',
+    max: 0.92, acc: 0.9, grip: 0.84, off: 0.9, mass: 0.85, armor: 0.8, r: 9.5 },
+  'lancia-stratos': { label: 'Lancia Stratos', year: 1974, era: 'clasico', price: 1400,
+    desc: 'Cuña de motor central: corta, rapidísima de reacciones y difícil de domar.',
+    max: 0.96, acc: 0.95, grip: 0.84, off: 0.9, mass: 0.95, armor: 0.9, r: 9.5 },
+  'fiat-131-abarth': { label: 'Fiat 131 Abarth', year: 1977, era: 'clasico', price: 0,
+    desc: 'Berlina de propulsión noble y fácil de llevar. El coche con el que empiezas.',
+    max: 0.93, acc: 0.9, grip: 0.88, off: 0.9, mass: 0.95, armor: 0.9, r: 10 },
+  'ford-escort-rs1800': { label: 'Ford Escort RS1800', year: 1979, era: 'clasico', price: 800,
+    desc: 'Propulsión clásica y ligera: derrapa con alegría.',
+    max: 0.93, acc: 0.93, grip: 0.85, off: 0.9, mass: 0.95, armor: 0.9, r: 10 },
+  'opel-ascona-400': { label: 'Opel Ascona 400', year: 1982, era: 'clasico', price: 1000,
+    desc: 'El último campeón de propulsión del mundial: robusto y estable.',
+    max: 0.93, acc: 0.9, grip: 0.88, off: 0.9, mass: 0.95, armor: 1, r: 10.5 },
+  'audi-quattro': { label: 'Audi Quattro', year: 1982, era: 'grupoB', price: 4200,
+    desc: 'Trajo la tracción total al mundial: tracciona en cualquier superficie.',
+    max: 1.06, acc: 1.12, grip: 1, off: 1.1, mass: 1.1, armor: 0.8, r: 10.5 },
+  'lancia-rally-037': { label: 'Lancia Rally 037', year: 1983, era: 'grupoB', price: 4400,
+    desc: 'Motor central y propulsión: ligero y preciso en firme, delicado en barro.',
+    max: 1.08, acc: 1.18, grip: 0.92, off: 0.9, mass: 1, armor: 0.8, r: 10 },
+  'peugeot-205-t16': { label: 'Peugeot 205 Turbo 16', year: 1985, era: 'grupoB', price: 5000,
+    desc: 'Compacto de motor central y tracción total: una bala en tierra.',
+    max: 1.1, acc: 1.18, grip: 0.96, off: 1, mass: 1, armor: 0.8, r: 9.5 },
+  'peugeot-205-t16-e2': { label: 'Peugeot 205 Turbo 16 E2', year: 1986, era: 'grupoB', price: 5600,
+    desc: 'La evolución con gran alerón: lo más bestia del Grupo B.',
+    max: 1.12, acc: 1.22, grip: 0.96, off: 1, mass: 1, armor: 0.8, r: 10 },
+  'lancia-delta-hf': { label: 'Lancia Delta HF', year: 1987, era: 'grupoA', price: 2400,
+    desc: 'Compacto turbo de tracción total con el que empezó una saga.',
+    max: 0.98, acc: 1, grip: 1, off: 1, mass: 1.05, armor: 1, r: 10 },
+  'lancia-delta-hf-4wd': { label: 'Lancia Delta HF 4WD', year: 1987, era: 'grupoA', price: 2600,
+    desc: 'El primer campeón del Grupo A: equilibrado y fiable.',
+    max: 1, acc: 1, grip: 1, off: 1, mass: 1.05, armor: 1, r: 10 },
+  'lancia-delta-integrale': { label: 'Lancia Delta Integrale', year: 1988, era: 'grupoA', price: 3600,
+    desc: 'Aletas anchas y muchos títulos: el rey del Grupo A.',
+    max: 1.03, acc: 1.04, grip: 1.04, off: 1, mass: 1.05, armor: 1, r: 10 },
+  'toyota-celica-gt-four': { label: 'Toyota Celica GT-Four', year: 1990, era: 'grupoA', price: 2900,
+    desc: 'Coupé turbo 4x4, rápido en las rectas y algo pesado.',
+    max: 1.02, acc: 1, grip: 1, off: 1, mass: 1.1, armor: 1, r: 10.5 },
+  'toyota-celica-turbo-4wd': { label: 'Toyota Celica Turbo 4WD', year: 1992, era: 'grupoA', price: 3200,
+    desc: 'La evolución del Celica: más ancho y más agarre.',
+    max: 1.03, acc: 1, grip: 1.03, off: 1, mass: 1.1, armor: 1, r: 10.5 },
+  'mitsubishi-lancer-evolution': { label: 'Mitsubishi Lancer Evolution', year: 1996, era: 'grupoA', price: 3400,
+    desc: 'Berlina turbo 4x4 dura y eficaz fuera del asfalto.',
+    max: 1.03, acc: 1, grip: 1.04, off: 1.08, mass: 1.05, armor: 1.1, r: 10.5 },
+  'skoda-felicia-kit-car': { label: 'Škoda Felicia Kit Car', year: 1995, era: 'kit', price: 1200,
+    desc: 'Kit Car de tracción delantera: ligero y noble.',
+    max: 0.96, acc: 0.95, grip: 1.02, off: 0.9, mass: 0.85, armor: 0.85, r: 10 },
+  'citroen-xsara-kit-car': { label: 'Citroën Xsara Kit Car', year: 1999, era: 'kit', price: 1600,
+    desc: 'El Kit Car más rápido en asfalto, pero sufre en tierra.',
+    max: 0.99, acc: 0.95, grip: 1.02, off: 0.85, mass: 0.85, armor: 0.85, r: 10 },
+  'subaru-impreza-wrc': { label: 'Subaru Impreza WRC', year: 1997, era: 'wrc', price: 4800,
+    desc: 'Berlina WRC de motor bóxer: tracción y estabilidad.',
+    max: 1.06, acc: 1.08, grip: 1.08, off: 1.1, mass: 1, armor: 1.05, r: 10.5 },
+  'ford-escort-wrc': { label: 'Ford Escort WRC', year: 1998, era: 'wrc', price: 4500,
+    desc: 'El primer WRC de Ford, con su gran alerón de berlina.',
+    max: 1.04, acc: 1.08, grip: 1.08, off: 1.1, mass: 1, armor: 1.05, r: 10.5 },
+  'toyota-corolla-wrc': { label: 'Toyota Corolla WRC', year: 1999, era: 'wrc', price: 4600,
+    desc: 'Compacto WRC muy equilibrado.',
+    max: 1.05, acc: 1.08, grip: 1.08, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'peugeot-206-wrc': { label: 'Peugeot 206 WRC', year: 2000, era: 'wrc', price: 5200,
+    desc: 'Corto y ágil: gira como ninguno en las curvas cerradas.',
+    max: 1.06, acc: 1.08, grip: 1.1, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'citroen-xsara-wrc': { label: 'Citroën Xsara WRC', year: 2003, era: 'wrc', price: 5600,
+    desc: 'Eficaz en cualquier superficie y muy resistente.',
+    max: 1.06, acc: 1.08, grip: 1.08, off: 1.1, mass: 1, armor: 1.15, r: 10 },
+  'ford-focus-rs-wrc': { label: 'Ford Focus RS WRC', year: 2006, era: 'wrc', price: 5800,
+    desc: 'Rápido y robusto, muy fuerte en tierra.',
+    max: 1.06, acc: 1.08, grip: 1.08, off: 1.15, mass: 1, armor: 1.1, r: 10 },
+  'citroen-c4-wrc': { label: 'Citroën C4 WRC', year: 2008, era: 'wrc', price: 6200,
+    desc: 'Coupé WRC muy preciso: el más eficaz de su época.',
+    max: 1.07, acc: 1.08, grip: 1.1, off: 1.1, mass: 1, armor: 1.05, r: 10.5 },
+  'citroen-ds3-wrc': { label: 'Citroën DS3 WRC', year: 2011, era: 'wrc', price: 6500,
+    desc: 'Compacto de nueva generación, ágil y rapidísimo.',
+    max: 1.07, acc: 1.08, grip: 1.1, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'vw-polo-r-wrc': { label: 'Volkswagen Polo R WRC', year: 2013, era: 'wrc', price: 6800,
+    desc: 'Dominador de su época: rápido en todas partes.',
+    max: 1.08, acc: 1.08, grip: 1.11, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'ford-fiesta-wrc': { label: 'Ford Fiesta WRC', year: 2017, era: 'wrc', price: 6600,
+    desc: 'WRC de la era de los grandes alerones, muy estable.',
+    max: 1.08, acc: 1.08, grip: 1.12, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'toyota-yaris-wrc': { label: 'Toyota Yaris WRC', year: 2018, era: 'wrc', price: 7200,
+    desc: 'Mucha carga aerodinámica: pegado al suelo.',
+    max: 1.09, acc: 1.08, grip: 1.13, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'hyundai-i20-coupe-wrc': { label: 'Hyundai i20 Coupe WRC', year: 2019, era: 'wrc', price: 7000,
+    desc: 'Coupé WRC de última generación, rápido y nervioso.',
+    max: 1.09, acc: 1.08, grip: 1.11, off: 1.1, mass: 1, armor: 1.05, r: 10 },
+  'toyota-gr-yaris-rally1': { label: 'Toyota GR Yaris Rally1', year: 2022, era: 'rally1', price: 9400,
+    desc: 'Rally1 híbrido: empuje eléctrico a la salida de las curvas.',
+    max: 1.1, acc: 1.18, grip: 1.12, off: 1.15, mass: 1.05, armor: 1.1, r: 10 },
+  'hyundai-i20-n-rally1': { label: 'Hyundai i20 N Rally1', year: 2024, era: 'rally1', price: 8800,
+    desc: 'Rally1 híbrido, muy rápido en asfalto.',
+    max: 1.1, acc: 1.14, grip: 1.12, off: 1.15, mass: 1.05, armor: 1.1, r: 10 },
+};
+export const DEFAULT_CAR = 'lancia-delta-integrale';   // juego libre y recreativa
+export const START_CAR = 'fiat-131-abarth';            // con el que empieza el campeonato
+// Identificadores de la versión anterior (coches genéricos) a su equivalente
+export const OLD_CARS = { compacto: 'lancia-delta-hf-4wd', coupe: 'toyota-celica-gt-four', berlina: 'mitsubishi-lancer-evolution', raid: 'mitsubishi-lancer-evolution' };
+// Coches en orden de época y año, agrupados para los desplegables y el garaje
+export function carsByEra() {
+  return Object.keys(ERAS).map((era) => [era, Object.keys(CAR_MODELS).filter((id) => CAR_MODELS[id].era === era).sort((x, y) => CAR_MODELS[x].year - CAR_MODELS[y].year)]);
+}
 
 export const UPGRADES = {
   motor:      { label: 'Motor',      desc: '+3 % de velocidad punta y +6 % de aceleración por nivel' },
@@ -134,9 +239,9 @@ export const CRT = {
 };
 
 export function carSpec(id, up = {}) {
-  const M = CAR_MODELS[id] || CAR_MODELS.compacto, l = (k) => up[k] || 0;
+  const M = CAR_MODELS[id] || CAR_MODELS[DEFAULT_CAR], l = (k) => up[k] || 0;
   return {
-    model: CAR_MODELS[id] ? id : 'compacto',
+    model: CAR_MODELS[id] ? id : DEFAULT_CAR,
     max: M.max * (1 + 0.03 * l('motor')),
     acc: M.acc * (1 + 0.06 * l('motor')),
     grip: M.grip * (1 + 0.06 * l('neumaticos')),

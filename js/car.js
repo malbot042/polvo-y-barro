@@ -1,5 +1,5 @@
-// Coches de rally de Grupo A de finales de los 80 y principios de los 90. Tres modelos (compacto,
-// coupé y berlina, todos turbo 4x4), cada uno con su silueta
+// Coches campeones del Mundial de Rallies, de los clásicos de los 70 a los Rally1 híbridos. Cada
+// carrocería se genera a partir de sus proporciones (BODIES), cada uno con su silueta
 // y sus detalles. La vista cenital se pre-dibuja en alta resolución (sprite) por modelo +
 // decoración + dorsal, y en tiempo real se le añaden suciedad y daños. En el juego, el coche
 // se ve en isométrico montando capas de ese sprite a distintas alturas (sprite stacking).
@@ -8,9 +8,10 @@ import { rng, lerp, shade, isoView, ISO_Z } from './util.js';
 const K = 8;              // resolución del sprite: px por unidad de mundo
 const SW = 40, SH = 24;   // tamaño del sprite en unidades de mundo
 
-// Decoraciones elegibles, con los colores clásicos de los rallies de finales de los 80 y principios
-// de los 90 (sin marcas ni patrocinadores reales). base null = color de la paleta activa.
+// Decoraciones elegibles (sin marcas ni patrocinadores reales). «epoca» usa los colores de época de
+// cada coche (carLivery); en las demás, base null = color de la paleta activa.
 export const LIVERIES = {
+  epoca:    { label: 'Colores de época del coche',   base: null,      sec: null,      ter: null,      pat: null,      pod: null },
   paleta:   { label: 'Color de la paleta',          base: null,      sec: '#ffffff', ter: '#15171a', pat: 'band',    pod: true },
   franjas:  { label: 'Blanco con franjas azul y rojo', base: '#f3f1ea', sec: '#1d3f8f', ter: '#d4322c', pat: 'sash',  pod: true },
   azul:     { label: 'Azul y amarillo',             base: '#1c3f94', sec: '#f5c400', ter: '#ffffff', pat: 'band',    pod: true },
@@ -19,33 +20,77 @@ export const LIVERIES = {
   verde:    { label: 'Verde y blanco',              base: '#1f5a3a', sec: '#f2efe6', ter: '#e0b23a', pat: 'split',   pod: false },
   naranja:  { label: 'Blanco y naranja',            base: '#f3f1ea', sec: '#ef7a1a', ter: '#1d2a44', pat: 'stripes', pod: true },
 };
-export const RIVAL_LIVERIES = [
-  { base: '#1f4fa8', sec: '#ffffff', ter: '#d4322c', pat: 'stripes', pod: true },
-  { base: '#f1efe8', sec: '#c8202a', ter: '#15171a', pat: 'sash',    pod: false },
-  { base: '#f2b705', sec: '#15171a', ter: '#ffffff', pat: 'band',    pod: true },
-];
 export const GHOST_LIVERY = { base: '#e8eef3', sec: '#b8c4cf', ter: '#8795a3', pat: 'stripes', pod: false };
 export const DIRT = { barro: '#4e321c', polvo: '#b08657', nieve: '#f4f8fb' };
 
-// Medio contorno (lado y < 0) de proa a popa; se refleja para cerrar la carrocería.
-const MODELS = {
-  compacto: {
-    half: [[15.3, -3.8], ['Q', 15.4, -6.0, 13.8, -6.5], ['L', 12.6, -6.7], ['Q', 12.0, -7.9, 8.6, -8.0], ['Q', 5.4, -7.9, 4.8, -7.0],
-      ['L', -4.6, -7.1], ['Q', -5.2, -8.1, -8.6, -8.2], ['Q', -12.0, -8.1, -12.6, -7.2], ['L', -14.4, -7.0], ['Q', -15.5, -6.6, -15.4, -4.6], ['L', -15.4, 0]],
-    axle: [8.6, -8.6], wy: 6.9, tire: [6.2, 3.3], front: 15.3, rear: -15.4, lamps: [-15.75, 3.2, 2.4],
-  },
-  coupe: {
-    half: [[16.5, -3.2], ['Q', 16.6, -5.6, 15.0, -6.2], ['L', 13.5, -6.4], ['Q', 12.8, -7.6, 10.0, -7.7], ['Q', 7.2, -7.6, 6.6, -6.7],
-      ['L', -6.6, -6.8], ['Q', -7.2, -7.8, -10.0, -7.9], ['Q', -12.8, -7.8, -13.4, -6.9], ['L', -15.6, -6.6], ['Q', -16.5, -6.2, -16.4, -4.4], ['L', -16.4, 0]],
-    axle: [10, -10], wy: 6.7, tire: [6.2, 3.2], front: 16.5, rear: -16.4, lamps: [-16.7, 2.6, 3.0],
-  },
-  berlina: {
-    half: [[16.6, -3.6], ['Q', 16.7, -6.0, 15.1, -6.5], ['L', 13.6, -6.7], ['Q', 13.0, -8.0, 10.2, -8.1], ['Q', 7.4, -8.0, 6.8, -7.1],
-      ['L', -7.0, -7.2], ['Q', -7.6, -8.2, -10.4, -8.3], ['Q', -13.2, -8.2, -13.8, -7.3], ['L', -16.0, -7.0], ['Q', -16.9, -6.6, -16.8, -4.6], ['L', -16.8, 0]],
-    axle: [10.2, -10.4], wy: 7.0, tire: [6.4, 3.4], front: 16.6, rear: -16.8, lamps: [-17.1, 3.4, 2.8],
-  },
+// Carrocerías de los coches campeones: [largo, medio ancho, aletas, forma, alerón, faros, tomas de aire,
+// colores de época (base, secundario, terciario, patrón, faros auxiliares)]. Sin logotipos ni patrocinadores.
+// forma: hatch (compacto), sedan (berlina), coupe, mid (motor central), wedge (cuña)
+// alerón: none, duck (labio), small, big, wrc · faros: round (redondos), square, modern · tomas: roof, hood, both
+const BODIES = {
+  'alpine-a110': [30, 6.6, 0.6, 'coupe', 'none', 'round', '', ['#2350b8', '#f3f1ea', '#c8202a', 'stripes', true]],
+  'lancia-stratos': [29, 7.4, 0.8, 'wedge', 'duck', 'round', 'roof', ['#f3f1ea', '#1f8a4c', '#c8202a', 'sash', true]],
+  'fiat-131-abarth': [33, 6.8, 0.9, 'sedan', 'duck', 'round', '', ['#f2efe6', '#1f6fd6', '#f5c400', 'split', true]],
+  'ford-escort-rs1800': [31, 6.6, 1.0, 'sedan', 'duck', 'round', '', ['#f3f1ea', '#1d3f8f', '#c8202a', 'stripes', true]],
+  'opel-ascona-400': [34, 6.9, 1.0, 'sedan', 'duck', 'round', '', ['#f3f1ea', '#c8202a', '#15171a', 'band', true]],
+  'audi-quattro': [35, 7.0, 1.1, 'coupe', 'small', 'square', 'hood', ['#f3f1ea', '#c8202a', '#15171a', 'stripes', true]],
+  'lancia-rally-037': [31, 7.4, 0.9, 'mid', 'duck', 'square', 'roof', ['#f3f1ea', '#1d3f8f', '#c8202a', 'sash', true]],
+  'peugeot-205-t16': [30, 7.1, 1.2, 'mid', 'none', 'square', 'roof', ['#f3f1ea', '#1d3f8f', '#f5c400', 'sash', false]],
+  'peugeot-205-t16-e2': [31, 7.2, 1.3, 'mid', 'big', 'square', 'roof', ['#f3f1ea', '#1d3f8f', '#f5c400', 'chevron', false]],
+  'lancia-delta-hf': [31, 6.8, 0.8, 'hatch', 'small', 'square', 'hood', ['#f3f1ea', '#1d3f8f', '#c8202a', 'sash', true]],
+  'lancia-delta-hf-4wd': [31, 6.9, 0.9, 'hatch', 'small', 'square', 'hood', ['#f3f1ea', '#c8202a', '#1d3f8f', 'stripes', true]],
+  'lancia-delta-integrale': [31, 7.0, 1.4, 'hatch', 'small', 'square', 'both', ['#f3f1ea', '#1d3f8f', '#c8202a', 'stripes', true]],
+  'toyota-celica-gt-four': [35, 7.0, 1.0, 'coupe', 'big', 'modern', 'hood', ['#f3f1ea', '#c8202a', '#15171a', 'swoosh', true]],
+  'toyota-celica-turbo-4wd': [35, 7.1, 1.1, 'coupe', 'big', 'modern', 'both', ['#c8202a', '#f3f1ea', '#15171a', 'swoosh', true]],
+  'mitsubishi-lancer-evolution': [35, 7.0, 1.1, 'sedan', 'big', 'modern', 'hood', ['#f3f1ea', '#c8202a', '#15171a', 'split', true]],
+  'skoda-felicia-kit-car': [31, 6.8, 1.0, 'hatch', 'small', 'modern', '', ['#1f7a3a', '#f3f1ea', '#15171a', 'split', false]],
+  'citroen-xsara-kit-car': [33, 7.0, 1.2, 'hatch', 'small', 'modern', '', ['#c8202a', '#f3f1ea', '#1d3f8f', 'swoosh', false]],
+  'subaru-impreza-wrc': [35, 7.1, 1.3, 'sedan', 'wrc', 'modern', 'hood', ['#1c3f94', '#f5c400', '#ffffff', 'band', true]],
+  'ford-escort-wrc': [34, 7.0, 1.3, 'sedan', 'wrc', 'modern', 'hood', ['#1c3f94', '#f3f1ea', '#c8202a', 'split', false]],
+  'toyota-corolla-wrc': [33, 7.1, 1.4, 'hatch', 'wrc', 'modern', 'roof', ['#f3f1ea', '#c8202a', '#15171a', 'swoosh', false]],
+  'peugeot-206-wrc': [32, 7.2, 1.4, 'hatch', 'wrc', 'modern', 'roof', ['#f3f1ea', '#1d3f8f', '#f5c400', 'chevron', false]],
+  'citroen-xsara-wrc': [33, 7.2, 1.4, 'hatch', 'wrc', 'modern', 'roof', ['#c8202a', '#f3f1ea', '#1d3f8f', 'band', false]],
+  'ford-focus-rs-wrc': [33, 7.2, 1.4, 'hatch', 'wrc', 'modern', 'roof', ['#1c3f94', '#f3f1ea', '#18a0d8', 'swoosh', false]],
+  'citroen-c4-wrc': [34, 7.3, 1.4, 'coupe', 'wrc', 'modern', 'roof', ['#c8202a', '#15171a', '#f3f1ea', 'split', false]],
+  'citroen-ds3-wrc': [32, 7.3, 1.5, 'hatch', 'wrc', 'modern', 'roof', ['#c8202a', '#15171a', '#f3f1ea', 'band', false]],
+  'vw-polo-r-wrc': [32, 7.3, 1.5, 'hatch', 'wrc', 'modern', 'roof', ['#f3f1ea', '#1c3f94', '#18a0d8', 'chevron', false]],
+  'ford-fiesta-wrc': [32, 7.4, 1.6, 'hatch', 'wrc', 'modern', 'roof', ['#f3f1ea', '#1c3f94', '#ef7a1a', 'swoosh', false]],
+  'toyota-yaris-wrc': [32, 7.5, 1.7, 'hatch', 'wrc', 'modern', 'roof', ['#f3f1ea', '#c8202a', '#15171a', 'sash', false]],
+  'hyundai-i20-coupe-wrc': [33, 7.5, 1.6, 'hatch', 'wrc', 'modern', 'roof', ['#1c3f94', '#ef7a1a', '#f3f1ea', 'swoosh', false]],
+  'toyota-gr-yaris-rally1': [33, 7.6, 1.6, 'hatch', 'wrc', 'modern', 'roof', ['#15171a', '#c8202a', '#f3f1ea', 'chevron', false]],
+  'hyundai-i20-n-rally1': [33, 7.5, 1.6, 'hatch', 'wrc', 'modern', 'roof', ['#1c3f94', '#ef7a1a', '#f3f1ea', 'split', false]],
 };
-const model = (id) => MODELS[id] || MODELS.compacto;
+const FALLBACK = 'lancia-delta-integrale';
+
+// Genera el contorno, los ejes y el habitáculo a partir de las proporciones
+function makeModel([len, hw, fl, shape, wing, lamps, scoop, col]) {
+  const hl = len / 2, f = hl, r = -hl, H = hw + fl;
+  const aF = f - Math.max(6.4, len * (shape === 'wedge' ? 0.17 : 0.21));
+  const aR = r + Math.max(6.4, len * (shape === 'mid' || shape === 'wedge' ? 0.17 : 0.19));
+  const nose = hw * (shape === 'wedge' ? 0.42 : 0.55), tail = hw * 0.62;
+  const half = [[f, -nose], ['Q', f + 0.1, -hw * 0.95, f - 2, -hw], ['L', aF + 4.2, -hw],
+    ['Q', aF + 3.4, -H, aF, -H], ['Q', aF - 3.4, -H, aF - 4.2, -hw],
+    ['L', aR + 4.2, -hw], ['Q', aR + 3.4, -H - 0.1, aR, -H - 0.1], ['Q', aR - 3.4, -H - 0.1, aR - 4.2, -hw],
+    ['L', r + 1.8, -hw * 0.98], ['Q', r - 0.1, -hw * 0.92, r, -tail], ['L', r, 0]];
+  const cab = {
+    hatch: [[r + 3.6, aF - 2.0, hw - 0.9], [r + 6.4, aF - 6.0, hw - 1.3], 9.6],
+    sedan: [[aR - 1.0, aF - 2.6, hw - 0.9], [aR + 2.0, aF - 6.2, hw - 1.3], 9.6],
+    coupe: [[r + 4.6, aF - 4.0, hw - 1.0], [aR + 3.2, aF - 8.0, hw - 1.5], 9.0],
+    mid: [[aR + 3.0, aF - 0.6, hw - 1.0], [aR + 5.6, aF - 4.6, hw - 1.4], 8.8],
+    wedge: [[aR + 2.4, aF + 1.5, hw - 0.6], [aR + 5.0, aF - 2.6, hw - 1.4], 8.3],
+  }[shape];
+  return {
+    half, axle: [aF, aR], wy: H - 1.2, tire: [lamps === 'modern' ? 6.6 : 6.0, 3.3], front: f, rear: r, hw,
+    lamps: [r - 0.3, hw * 0.35, hw * 0.4], shape, wing, lights: lamps, scoop,
+    base: cab[0], top: cab[1], roofZ: cab[2],
+    livery: { base: col[0], sec: col[1], ter: col[2], pat: col[3], pod: col[4] },
+  };
+}
+const MODELS = Object.fromEntries(Object.entries(BODIES).map(([id, b]) => [id, makeModel(b)]));
+const model = (id) => MODELS[id] || MODELS[FALLBACK];
+const known = (id) => (MODELS[id] ? id : FALLBACK);
+// Colores de época del coche (los usan los rivales y la decoración «Colores de época»)
+export function carLivery(id) { return { ...model(id).livery }; }
 const wheelsOf = (M) => [[M.axle[0], -M.wy, 1], [M.axle[0], M.wy, 1], [M.axle[1], -M.wy, 0], [M.axle[1], M.wy, 0]];
 
 function bodyPath(c, M) {
@@ -228,94 +273,66 @@ function rearWing(c, L, x, hw) {
   c.fillStyle = '#0c0d0f'; c.fillRect(x - 1.7, -hw - 0.4, 3.4, 0.85); c.fillRect(x - 1.7, hw - 0.45, 3.4, 0.85);
 }
 
-const DETAILS = {
-  compacto(c, L, num) {
-    c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
-    c.beginPath(); c.moveTo(6.8, -5.6); c.quadraticCurveTo(13.6, -5.9, 14.3, -4); c.lineTo(14.3, 4); c.quadraticCurveTo(13.6, 5.9, 6.8, 5.6); c.stroke();
-    vents(c, 8.8, 1.3);
-    bonnetShine(c, 11, -2.5);
-    glass(c, 2.6, 6.7, 5.3, 5.9);
-    c.fillStyle = 'rgba(255,255,255,.2)';
-    c.beginPath(); c.moveTo(6.1, -4.6); c.lineTo(6.5, -3.5); c.lineTo(3.3, 3.8); c.lineTo(2.9, 2.6); c.closePath(); c.fill();
-    c.fillStyle = '#18232e';
-    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(2.6, s * 5.9); c.lineTo(-6.5, s * 5.6); c.lineTo(-6.5, s * 6.3); c.lineTo(2.2, s * 6.7); c.closePath(); c.fill(); }
-    roof(c, L, -6.6, 2.7, 5.6);
-    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(0.6, -1.6, 1.7, 3.2, 0.5); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(2.0, -1.4, 0.25, 2.8);
-    roofNumber(c, L, -2.9, num);
-    glass(c, -9.9, -6.6, 5.4, 5.0, true);
-    // alerón
-    c.fillStyle = '#16181c'; c.beginPath(); c.roundRect(-14.4, -8.0, 2.6, 16, 0.5); c.fill();
-    c.fillStyle = L.sec; c.fillRect(-13.9, -7.3, 1.5, 14.6);
-    c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(-13.9, -7.3, 0.4, 14.6);
-    c.fillStyle = '#0c0d0f'; c.fillRect(-14.8, -8.4, 3.4, 0.85); c.fillRect(-14.8, 7.55, 3.4, 0.85);
-    c.fillStyle = L.ter; c.fillRect(-13.75, -2.6, 1.2, 5.2);
-    c.fillStyle = L.sec; for (let y = -2.2; y < 2.4; y += 1.1) c.fillRect(-13.5, y, 0.7, 0.55);
-    headlights(c, 14.9, 3.7, 6.0, 1.9);
-    if (L.pod) lightPod(c, 15.7, 5.1);
-    else { c.fillStyle = '#e23b2e'; c.beginPath(); c.roundRect(15.2, 1.6, 0.9, 1.4, 0.3); c.fill(); c.fillStyle = '#111316'; c.fillRect(14.95, -2.6, 0.5, 5.2); }
-  },
-
-  // Coupé turbo de Grupo A: capó largo con abultamiento y toma de aire, cabina retrasada, alerón
-  coupe(c, L, num) {
-    c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
-    c.beginPath(); c.moveTo(5.0, -5.5); c.lineTo(15.4, -5.2); c.moveTo(5.0, 5.5); c.lineTo(15.4, 5.2); c.stroke();
-    // abultamiento del capó
-    const hb = c.createLinearGradient(0, -2.6, 0, 2.6);
-    hb.addColorStop(0, 'rgba(0,0,0,.22)'); hb.addColorStop(0.45, 'rgba(255,255,255,.22)'); hb.addColorStop(1, 'rgba(0,0,0,.2)');
-    c.fillStyle = hb; c.beginPath(); c.roundRect(6.5, -2.6, 8.4, 5.2, 2); c.fill();
-    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(12.2, -1.3, 1.8, 2.6, 0.5); c.fill();
-    bonnetShine(c, 11.5, -3.6);
-    glass(c, 0.4, 4.9, 5.0, 5.7);
-    c.fillStyle = 'rgba(255,255,255,.2)';
-    c.beginPath(); c.moveTo(4.3, -4.3); c.lineTo(4.7, -3.2); c.lineTo(1.1, 3.6); c.lineTo(0.7, 2.5); c.closePath(); c.fill();
-    c.fillStyle = '#18232e';
-    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(0.4, s * 5.7); c.lineTo(-7.4, s * 5.3); c.lineTo(-7.4, s * 6.0); c.lineTo(0.1, s * 6.5); c.closePath(); c.fill(); }
-    roof(c, L, -7.4, 0.5, 5.3, 1.8);
-    roofNumber(c, L, -3.4, num, 4.6, 6.4);
-    glass(c, -11.6, -7.4, 5.2, 4.6, true);
-    rearWing(c, L, -14.9, 7.4);
-    headlights(c, 16.2, 3.4, 5.6, 1.6);
-    for (const s of [-1, 1]) { c.fillStyle = '#f7f2d2'; c.beginPath(); c.arc(16.0, s * 1.6, 0.6, 0, 7); c.fill(); }
-    if (L.pod) lightPod(c, 17.0, 3.8);
-  },
-
-  // Berlina turbo 4x4: cuatro puertas, toma de aire en el capó, techo largo y gran alerón en el maletero
-  berlina(c, L, num) {
-    c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
-    c.beginPath(); c.moveTo(7.4, -5.8); c.lineTo(15.6, -5.5); c.moveTo(7.4, 5.8); c.lineTo(15.6, 5.5); c.stroke();
-    c.beginPath(); c.moveTo(-11.2, -5.6); c.lineTo(-11.2, 5.6); c.stroke();
-    // toma de aire del intercooler
-    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(10.2, -2.0, 3.0, 4.0, 0.8); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(12.8, -1.7, 0.3, 3.4);
-    bonnetShine(c, 12, -3.4);
-    glass(c, 3.7, 7.4, 5.4, 6.1);
-    c.fillStyle = 'rgba(255,255,255,.2)';
-    c.beginPath(); c.moveTo(6.9, -4.6); c.lineTo(7.3, -3.5); c.lineTo(4.4, 3.8); c.lineTo(4.0, 2.7); c.closePath(); c.fill();
-    c.fillStyle = '#18232e';
-    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(3.7, s * 6.1); c.lineTo(-7.2, s * 5.8); c.lineTo(-7.2, s * 6.5); c.lineTo(3.3, s * 6.9); c.closePath(); c.fill(); }
-    c.fillStyle = L.base; for (const s of [-1, 1]) c.fillRect(-2.0, s > 0 ? 5.8 : -6.9, 0.7, 1.1);   // montante central
-    roof(c, L, -7.2, 3.7, 5.7);
-    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(1.4, -1.5, 1.6, 3.0, 0.5); c.fill();
-    roofNumber(c, L, -2.0, num);
-    glass(c, -11.0, -7.2, 5.5, 5.0, true);
-    rearWing(c, L, -15.0, 8.0);
-    headlights(c, 16.2, 3.6, 6.0, 1.8);
-    if (L.pod) lightPod(c, 17.0, 4.4);
-    else { for (const s of [-1, 1]) { c.fillStyle = '#f7f2d2'; c.beginPath(); c.arc(16.1, s * 1.8, 0.6, 0, 7); c.fill(); } }
-  },
-};
+// Detalles vistos desde arriba: capó, lunas, techo con dorsal, tomas de aire, alerón y faros
+function details(c, L, num, M) {
+  const { front: f, rear: r, hw, base, top } = M;
+  c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = 0.18;
+  c.beginPath(); c.moveTo(base[1] + 0.4, -hw + 1.2); c.lineTo(f - 1.2, -hw + 1.5); c.moveTo(base[1] + 0.4, hw - 1.2); c.lineTo(f - 1.2, hw - 1.5); c.stroke();
+  const hood = (base[1] + f) / 2;
+  if (M.scoop === 'hood' || M.scoop === 'both') {
+    c.fillStyle = '#111316'; c.beginPath(); c.roundRect(hood - 1.2, -1.9, 2.8, 3.8, 0.8); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(hood + 1.3, -1.6, 0.3, 3.2);
+  } else if (M.lights !== 'round') vents(c, hood - 1.5, 1.3);
+  bonnetShine(c, hood + 1, -hw * 0.4);
+  // lunas laterales, parabrisas y luneta
+  c.fillStyle = '#18232e';
+  for (const s of [-1, 1]) {
+    c.beginPath(); c.moveTo(base[1] - 0.3, s * base[2]); c.lineTo(top[1], s * top[2]); c.lineTo(top[0], s * top[2]); c.lineTo(base[0] + 0.3, s * base[2]); c.closePath(); c.fill();
+  }
+  glass(c, top[1], base[1], base[2] - 0.4, top[2] + 0.2);
+  c.fillStyle = 'rgba(255,255,255,.2)';
+  const wx = (top[1] + base[1]) / 2;
+  c.beginPath(); c.moveTo(wx + 0.6, -top[2] + 0.8); c.lineTo(wx + 1.0, -top[2] + 1.9); c.lineTo(wx - 1.0, top[2] - 1.2); c.lineTo(wx - 1.4, top[2] - 2.3); c.closePath(); c.fill();
+  roof(c, L, top[0], top[1], top[2]);
+  if (M.scoop === 'roof' || M.scoop === 'both') { c.fillStyle = '#111316'; c.beginPath(); c.roundRect(top[1] - 2.4, -1.5, 1.7, 3.0, 0.5); c.fill(); }
+  roofNumber(c, L, (top[0] + top[1]) / 2 - (M.scoop === 'roof' || M.scoop === 'both' ? 0.9 : 0), num, Math.min(4.8, (top[1] - top[0]) * 0.5), Math.min(6.8, top[2] * 1.2));
+  glass(c, base[0], top[0], top[2] + 0.1, base[2] - 0.5, true);
+  // motor central: rejillas en la tapa trasera
+  if (M.shape === 'mid' || M.shape === 'wedge') {
+    c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = 0.35;
+    for (let x = base[0] - 1.2; x > r + 3.5; x -= 0.9) { c.beginPath(); c.moveTo(x, -hw * 0.5); c.lineTo(x, hw * 0.5); c.stroke(); }
+  }
+  // alerón
+  if (M.wing === 'duck') {
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(r + 1.4, -hw * 0.85, 0.5, hw * 1.7);
+    c.fillStyle = L.sec; c.fillRect(r + 0.3, -hw * 0.82, 1.0, hw * 1.64);
+  } else if (M.wing === 'small') rearWing(c, L, r + 2.0, hw * 0.85);
+  else if (M.wing === 'big') rearWing(c, L, r + 2.2, hw + 0.5);
+  else if (M.wing === 'wrc') {
+    rearWing(c, L, r + 2.4, hw + 0.9);
+    c.fillStyle = L.ter; c.fillRect(r + 4.1, -hw + 0.4, 0.8, hw * 2 - 0.8);
+  }
+  // faros
+  if (M.lights === 'round') {
+    for (const s of [-1, 1]) for (const y of [0.42, 0.74]) {
+      c.fillStyle = '#e8f0f5'; c.beginPath(); c.arc(f - 1.0, s * hw * y, 1.05, 0, 7); c.fill();
+      c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 0.25; c.stroke();
+    }
+  } else if (M.lights === 'square') headlights(c, f - 0.2, hw * 0.35, hw * 0.85, 1.6);
+  else headlights(c, f - 0.3, hw * 0.45, hw * 0.92, 2.2);
+  if (L.pod) lightPod(c, f + 0.5, hw * 0.62);
+}
 
 function makeSprite(L, num, id) {
   const M = model(id), [cv, c] = newSprite();
   c.fillStyle = '#141619';
   const [rx] = [M.axle[1]];
   for (const s of [-1, 1]) c.fillRect(rx - 3.6, s > 0 ? M.wy - 1.6 : -M.wy - 1.4, 0.8, 3);   // faldillas
-  mirrors(c, L, id === 'coupe' ? 2.4 : id === 'berlina' ? 3.4 : 4.2, id === 'coupe' ? 7.4 : id === 'berlina' ? 8.0 : 7.9);
+  mirrors(c, L, M.base[1] - 1.6, M.hw + 0.9);
   bodyPath(c, M); c.fillStyle = L.base; c.fill();
   c.save(); bodyPath(c, M); c.clip(); pattern(c, L); shadeBody(c, M); c.restore();
   bodyPath(c, M); c.lineWidth = 0.35; c.strokeStyle = 'rgba(0,0,0,.6)'; c.stroke();
-  (DETAILS[id] || DETAILS.compacto)(c, L, num);
+  details(c, L, num, M);
   tailLights(c, M);
   return cv;
 }
@@ -369,7 +386,7 @@ function makeDamage(id) {
   }
   c.restore();
   // luna agrietada
-  const gx = id === 'coupe' ? 3 : id === 'raid' ? 6.4 : 4.8;
+  const gx = (model(id).top[1] + model(id).base[1]) / 2;
   c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 0.14;
   for (let i = 0; i < 9; i++) {
     const a = R() * 6.28, l = 1.5 + R() * 3;
@@ -390,7 +407,7 @@ function layer(kind, id, maker) { const k = kind + id; return extra[k] || (extra
 
 // Dibuja el coche en coordenadas de mundo (car: x, y, a, h, steer, brk, num, dirt, dmg, model)
 export function drawCar(c, car, L, alpha = 1) {
-  const id = MODELS[car.model] ? car.model : 'compacto', M = model(id);
+  const id = known(car.model), M = model(id);
   const h = car.h || 0, sc = 1 + h * 0.014;
   c.save();
   c.globalAlpha = alpha * 0.85;
@@ -436,17 +453,13 @@ export function drawCar(c, car, L, alpha = 1) {
 
 // Datos para la iluminación nocturna: posición del frontal y si lleva faros auxiliares
 export function carFront(id) { return model(id).front; }
+// Eje trasero y separación de las ruedas, para las marcas de derrape
+export function carWheels(id) { const M = model(id); return { ax: -M.axle[1], wy: M.wy }; }
 
 // ---------- Vista isométrica ----------
 
 const KS = 4;                       // resolución de las capas laterales
-const BODY_Z = 5.5, ROOF_Z = 9.5;   // altura del capó y del techo
-// Habitáculo: base y techo como [x trasera, x delantera, medio ancho]
-const CABIN = {
-  compacto: { base: [-9.9, 6.7, 5.9], top: [-6.6, 2.7, 5.6] },
-  coupe:    { base: [-11.6, 4.9, 5.7], top: [-7.4, 0.5, 5.3] },
-  berlina:  { base: [-11.0, 7.4, 6.1], top: [-7.2, 3.7, 5.7] },
-};
+const BODY_Z = 5.5, ROOF_Z = 9.6;   // altura del capó y del techo más alto
 export const CAR_TOP = ROOF_Z;
 
 // Capas laterales: la carrocería con su decoración, oscurecida en `dark` (null = negro de los bajos)
@@ -475,7 +488,7 @@ function side(id, L, dark) {
 
 // Sombra del coche sobre el suelo (o sobre el tablero del puente, a la altura z0)
 export function drawCarShadowIso(c, V, car, z0 = 0) {
-  const id = MODELS[car.model] ? car.model : 'compacto', h = car.h || 0;
+  const id = known(car.model), h = car.h || 0;
   V.set(c, z0);
   c.globalAlpha = 0.85 * Math.max(0.35, 1 - h / 60);
   c.translate(car.x + 1.5 + h * 0.55, car.y + 1.5 + h * 0.55); c.rotate(car.a);
@@ -486,7 +499,7 @@ export function drawCarShadowIso(c, V, car, z0 = 0) {
 // Coche en isométrico: ruedas, laterales, capó con suciedad y daños, cabina acristalada y techo.
 // z0: altura del suelo bajo el coche (tablero de un puente); dx, dy: desplazamiento en pantalla.
 export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
-  const id = MODELS[car.model] ? car.model : 'compacto', M = model(id), cab = CABIN[id];
+  const id = known(car.model), M = model(id), cab = M, RZ = M.roofZ;
   const base = z0 + (car.h || 0);
   const at = (z) => { V.set(c, base + z, dx, dy); c.translate(car.x, car.y); c.rotate(car.a); };
   const [tl, tw] = M.tire;
@@ -523,15 +536,26 @@ export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
     for (const s of [-1, 1]) { c.beginPath(); c.arc(lx - 0.5, s * (ly + len / 2), 2.4, 0, 7); c.fill(); }
     c.globalAlpha = 1;
   }
+  // alerón grande: se repite elevado sobre el maletero
+  if (M.wing === 'big' || M.wing === 'wrc') {
+    const x0 = M.rear + 0.5, x1 = M.rear + (M.wing === 'wrc' ? 5.2 : 3.8), hy = M.hw + (M.wing === 'wrc' ? 1.3 : 0.9);
+    const wsx = (x0 + SW / 2) * K, wsy = (SH / 2 - hy) * K, wsw = (x1 - x0) * K, wsh = hy * 2 * K;
+    for (let z = BODY_Z + 0.6; z < BODY_Z + 2.6; z += step) {
+      at(z); c.fillStyle = '#121416';
+      for (const s of [-1, 1]) c.fillRect(x0 + 0.3, s > 0 ? hy - 0.9 : -hy, x1 - x0 - 0.6, 0.9);
+    }
+    at(BODY_Z + 2.6);
+    c.drawImage(spr, wsx, wsy, wsw, wsh, x0, -hy, x1 - x0, hy * 2);
+  }
   const glassCol = '#1c2833', pillar = shade(L.base, 0.68);
-  for (let z = BODY_Z + step; z < ROOF_Z; z += step) {
-    const t = (z - BODY_Z) / (ROOF_Z - BODY_Z);
+  for (let z = BODY_Z + step; z < RZ; z += step) {
+    const t = (z - BODY_Z) / (RZ - BODY_Z);
     const x0 = lerp(cab.base[0], cab.top[0], t), x1 = lerp(cab.base[1], cab.top[1], t), hw = lerp(cab.base[2], cab.top[2], t);
     at(z);
-    c.fillStyle = z > ROOF_Z - 1.1 ? pillar : glassCol;
+    c.fillStyle = z > RZ - 1.1 ? pillar : glassCol;
     c.beginPath(); c.roundRect(x0, -hw, x1 - x0, hw * 2, 1.2); c.fill();
   }
-  at(ROOF_Z);
+  at(RZ);
   const [rx0, rx1, rhw] = cab.top, sx = (rx0 + SW / 2) * K, sy = (SH / 2 - rhw) * K, sw = (rx1 - rx0) * K, sh = rhw * 2 * K;
   c.drawImage(spr, sx, sy, sw, sh, rx0, -rhw, rx1 - rx0, rhw * 2);
   for (const [img, a] of dirt) { c.globalAlpha = a * 0.7; c.drawImage(img, sx, sy, sw, sh, rx0, -rhw, rx1 - rx0, rhw * 2); }
@@ -539,7 +563,7 @@ export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
 }
 
 // Vista previa en un canvas de interfaz, en isométrico y de tres cuartos
-export function drawCarPreview(cv, L, num = '1', id = 'compacto', extraState = {}) {
+export function drawCarPreview(cv, L, num = '1', id = FALLBACK, extraState = {}) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = cv.clientWidth || cv.width, h = cv.clientHeight || cv.height;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);

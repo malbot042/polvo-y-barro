@@ -1,7 +1,8 @@
 // Modo campeonato: dinero, garaje (coches, mejoras, daños) y temporada con puntos.
 // Todo se guarda en el navegador.
 import { store, clamp } from './util.js';
-import { CAR_MODELS, UPGRADES, UP_PRICES, REPAIR_PER_PCT, carSpec } from './config.js';
+import { CAR_MODELS, UPGRADES, UP_PRICES, REPAIR_PER_PCT, START_CAR, OLD_CARS, carSpec } from './config.js';
+import { carLivery } from './car.js';
 import { SEASON } from './tracks.js';
 
 const KEY = 'pyb-career-v1';
@@ -11,14 +12,24 @@ export const TITLE_BONUS = 3000;
 const DRIVERS = ['Tú', 'Lobo', 'Niebla', 'Rayo'];
 
 const newSeason = (n) => ({ n, idx: 0, points: Object.fromEntries(DRIVERS.map((d) => [d, 0])), results: [] });
-const fresh = () => ({ money: 1200, car: 'compacto', cars: { compacto: { up: {}, dmg: 0 } }, season: newSeason(1), titles: 0 });
+const fresh = () => ({ money: 1200, car: START_CAR, cars: { [START_CAR]: { up: {}, dmg: 0 } }, season: newSeason(1), titles: 0 });
+// Coches de los rivales en cada temporada: de los clásicos a los Rally1
+const RIVAL_CARS = [
+  ['ford-escort-rs1800', 'lancia-stratos', 'opel-ascona-400'],
+  ['lancia-delta-integrale', 'mitsubishi-lancer-evolution', 'toyota-celica-gt-four'],
+  ['subaru-impreza-wrc', 'peugeot-206-wrc', 'citroen-xsara-wrc'],
+  ['citroen-ds3-wrc', 'vw-polo-r-wrc', 'ford-fiesta-wrc'],
+  ['toyota-yaris-wrc', 'hyundai-i20-n-rally1', 'toyota-gr-yaris-rally1'],
+];
 const valid = (s) => s && typeof s.money === 'number' && s.cars && s.cars[s.car] && s.season && s.season.points;
 
 export function createCareer() {
   let s = store.get(KEY, null);
-  if (s && s.cars && s.cars.raid) {   // la pick-up de raid pasó a ser la berlina
-    s.cars.berlina = s.cars.berlina || s.cars.raid; delete s.cars.raid;
-    if (s.car === 'raid') s.car = 'berlina';
+  if (s && s.cars) {   // coches genéricos de versiones anteriores → su equivalente real
+    for (const [old, now] of Object.entries(OLD_CARS)) {
+      if (s.cars[old]) { s.cars[now] = s.cars[now] || s.cars[old]; delete s.cars[old]; }
+      if (s.car === old) s.car = now;
+    }
   }
   if (!valid(s)) s = fresh();
   const save = () => store.set(KEY, s);
@@ -39,9 +50,13 @@ export function createCareer() {
     },
     // Rivales: más rápidos en cada prueba y con mejoras en temporadas siguientes
     rivals(base) {
-      const diff = 1 + s.season.idx * 0.012 + (s.season.n - 1) * 0.025;
-      const lvl = Math.min(4, s.season.n - 1);
-      return base.map((r) => ({ ...r, skill: Math.min(1.08, r.skill * diff), spec: carSpec(r.model, { motor: lvl, neumaticos: lvl }) }));
+      const diff = 1 + s.season.idx * 0.012 + (s.season.n - 1) * 0.01;
+      const lvl = Math.min(4, Math.floor((s.season.n - 1) / RIVAL_CARS.length) * 2);
+      const cars = RIVAL_CARS[Math.min(RIVAL_CARS.length - 1, s.season.n - 1)];
+      return base.map((r, i) => {
+        const model = cars[i % cars.length];
+        return { ...r, model, livery: carLivery(model), skill: Math.min(1.08, r.skill * diff), spec: carSpec(model, { motor: lvl, neumaticos: lvl }) };
+      });
     },
     buyCar(id) {
       const M = CAR_MODELS[id];
