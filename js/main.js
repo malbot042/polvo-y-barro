@@ -1,4 +1,5 @@
-// Arranque: pestañas, paletas, juego libre, recreativa, campeonato, editor, controles y bucle principal.
+// Arranque: el juego ocupa la pantalla y el resto (carrera rápida, recreativa, campeonato, editor,
+// opciones y ayuda) va en ventanas. También paletas, controles y bucle principal.
 import { store, fmtTime, esc } from './util.js';
 import { SURF, THEME, CAR_MODELS, ERAS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, DEFAULT_CAR, OLD_CARS, carSpec, carsByEra } from './config.js';
 import { BUILTIN_RAW, SEASON, ARCADE_STAGES } from './tracks.js';
@@ -111,12 +112,14 @@ function idleCard(i) {
     extra = `<p class="muted">Récord con este coche: <b>${i.best != null ? fmtTime(i.best) : 'sin tiempo'}</b>${i.best != null ? ' · correrás contra tu fantasma' : ''}</p>`;
   } else extra = '<p class="muted">Coge las latas de nitro, usa los saltos y no te dejes empujar.</p>';
   if (ev) extra += `<p class="muted">Daños al salir: <b>${Math.round(career.car().dmg * 100)}%</b> · Puntos: ${POINTS.join(' / ')}</p>`;
-  return `<div class="card"><span class="eyebrow">${modeTxt}</span><h3>${esc(i.name)}</h3><p>${meta}</p>${extra}<button class="btn" id="o-go" data-enter>Empezar</button></div>`;
+  const change = ev ? '' : '<button class="btn ghost" id="o-cfg">Cambiar carrera</button>';
+  return `<div class="card"><span class="eyebrow">${modeTxt}</span><h3>${esc(i.name)}</h3><p>${meta}</p>${extra}<div class="row"><button class="btn" id="o-go" data-enter>Empezar</button>${change}</div></div>`;
 }
 function showIdle(i) {
   ovl.innerHTML = idleCard(i);
   ovl.hidden = false;
   const go = $('o-go'); if (go) go.addEventListener('click', start);
+  const cfgB = $('o-cfg'); if (cfgB) cfgB.addEventListener('click', () => showTab('quick'));
 }
 
 function start() {
@@ -167,12 +170,12 @@ function showResults(r) {
       body = `<span class="eyebrow">${esc(r.track)}</span><h3>${me.pos === 1 ? '¡Victoria!' : me.pos + 'º puesto'}</h3>
         <div class="tscroll"><table class="res"><tbody>${rows}</tbody></table></div>`;
     }
-    buttons = '<button class="btn" id="o-again" data-enter>Repetir</button><button class="btn ghost" id="o-menu">Elegir otro</button>';
+    buttons = '<button class="btn" id="o-again" data-enter>Repetir</button><button class="btn ghost" id="o-menu">Cambiar carrera</button>';
   }
   ovl.innerHTML = `<div class="card">${body}<div class="row">${buttons}</div></div>`;
   ovl.hidden = false;
   if ($('o-again')) $('o-again').addEventListener('click', start);
-  if ($('o-menu')) $('o-menu').addEventListener('click', () => { showIdle(game.reset()); $('p-track').focus(); });
+  if ($('o-menu')) $('o-menu').addEventListener('click', () => { showIdle(game.reset()); showTab('quick'); });
   if ($('o-champ')) $('o-champ').addEventListener('click', () => leaveEvent(true));
 }
 
@@ -468,7 +471,8 @@ $('c-reset').addEventListener('click', () => {
 const KMAP = { ArrowUp: 't', KeyW: 't', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', Space: 'hb', ShiftLeft: 'n', ShiftRight: 'n', KeyN: 'n' };
 const typing = (e) => /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '');
 window.addEventListener('keydown', (e) => {
-  if ($('pane-play').hidden || typing(e)) return;
+  if (e.code === 'Escape' && openWin()) { e.preventDefault(); showTab('play'); return; }
+  if (openWin() || typing(e)) return;
   if (e.code === 'Enter' && !ovl.hidden) {
     const b = ovl.querySelector('[data-enter]');
     if (b) { e.preventDefault(); b.click(); return; }
@@ -580,22 +584,29 @@ $('fs').addEventListener('click', (e) => { e.currentTarget.blur(); toggleFull();
   if (!fsElement() && isFull()) { gameEl.classList.remove('full'); syncFs(); }
 }));
 
-// ---------- Pestañas ----------
+// ---------- Ventanas ----------
+// 'play' cierra todas y vuelve al juego; con una ventana abierta, el juego se queda en pausa.
+const WINS = ['quick', 'arcade', 'champ', 'edit', 'opts', 'help'];
+const openWin = () => WINS.find((w) => !$('pane-' + w).hidden) || null;
+let lastFocus = null;
 function showTab(t) {
+  const was = openWin();
   if (t !== 'play' && isFull()) exitFull();
-  for (const p of ['play', 'arcade', 'champ', 'edit']) {
-    $('pane-' + p).hidden = t !== p;
-    $('t-' + p).setAttribute('aria-selected', t === p);
-  }
+  for (const w of WINS) $('pane-' + w).hidden = t !== w;
+  $('wins').hidden = t === 'play';
+  document.querySelectorAll('[data-win]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.win === t));
   for (const k in game.keys) game.keys[k] = 0;
   if (t === 'champ') renderChamp();
   if (t === 'arcade') renderArcade();
+  if (t !== 'play') {
+    if (!was) lastFocus = document.activeElement;
+    const c = $('pane-' + t).querySelector('.wclose'); if (c) c.focus();
+  } else if (was && lastFocus && lastFocus.focus) { lastFocus.focus(); lastFocus = null; }
   requestAnimationFrame(() => { game.resize(); editor.resize(); editor.refresh(); });
 }
-$('t-play').addEventListener('click', () => showTab('play'));
-$('t-arcade').addEventListener('click', () => showTab('arcade'));
-$('t-champ').addEventListener('click', () => showTab('champ'));
-$('t-edit').addEventListener('click', () => showTab('edit'));
+document.querySelectorAll('[data-win]').forEach((b) => b.addEventListener('click', () => showTab(openWin() === b.dataset.win ? 'play' : b.dataset.win)));
+document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => showTab('play')));
+$('wins').addEventListener('pointerdown', (e) => { if (e.target === $('wins')) showTab('play'); });
 
 // ---------- HUD ----------
 let hudKey = '';
@@ -651,7 +662,7 @@ const DT = 1 / 120;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  const playing = !$('pane-play').hidden;
+  const playing = !openWin();
   if (playing) {
     acc += dt;
     while (acc >= DT) { game.tick(DT); acc -= DT; }

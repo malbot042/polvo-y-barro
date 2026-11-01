@@ -18,6 +18,10 @@ Después abre http://localhost:8000.
 
 Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from a branch*, rama `main` y carpeta `/ (root)`.
 
+### Pantalla
+
+El juego ocupa toda la ventana. Arriba hay un menú que abre ventanas por encima: *Carrera rápida* (circuito, coche, decoración, condiciones y modo), *Recreativa*, *Campeonato*, *Editor*, *Opciones* (sonido, copiloto, música, efecto CRT y paleta) y *Ayuda*. Mientras hay una ventana abierta el juego queda en pausa; se cierra con la ✕, con `Esc` o pulsando fuera. *Reiniciar* y pantalla completa están en el marcador.
+
 ### Controles
 
 | Acción | Teclado | Móvil |
@@ -30,10 +34,11 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 | Empezar | Enter | Empezar |
 | Silenciar | M | Sonido |
 | Pantalla completa | F (Esc para salir) | botón del marcador |
+| Cerrar una ventana | Esc | ✕ o tocar fuera |
 
 ### Modos
 
-- **Recreativa** (pestaña propia): seis tramos encadenados contra la cuenta atrás. Sales con los segundos justos para llegar al primer control, y cada control te da los del siguiente. El tiempo que sobra en meta pasa al tramo siguiente y suma 100 puntos por segundo. Cada control da 250 puntos, y los derrapes sobre la pista suman según lo cruzado que vayas, con un multiplicador que sube hasta ×5 si encadenas el derrape. Un golpe o una salida de pista te hacen perder el derrape en curso. Si se acaba el tiempo tienes 9 segundos para continuar (tres veces por partida); al continuar repites el tramo con los puntos que traías. Las diez mejores puntuaciones se guardan con tus iniciales.
+- **Recreativa** (menú *Recreativa*): seis tramos encadenados contra la cuenta atrás. Sales con los segundos justos para llegar al primer control, y cada control te da los del siguiente. El tiempo que sobra en meta pasa al tramo siguiente y suma 100 puntos por segundo. Cada control da 250 puntos, y los derrapes sobre la pista suman según lo cruzado que vayas, con un multiplicador que sube hasta ×5 si encadenas el derrape. Un golpe o una salida de pista te hacen perder el derrape en curso. Si se acaba el tiempo tienes 9 segundos para continuar (tres veces por partida); al continuar repites el tramo con los puntos que traías. Las diez mejores puntuaciones se guardan con tus iniciales.
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
 
@@ -91,7 +96,7 @@ La conducción es arcade: con gas y el volante a fondo a buena velocidad, la tra
 
 ### Efecto de monitor
 
-El botón *CRT* (junto a los de sonido) simula una pantalla de recreativa sin curvarla: barras horizontales oscuras alineadas con los píxeles reales de la pantalla, franjas muy suaves de fósforo rojo, verde y azul, viñeta en las esquinas y un poco más de brillo para compensar. Viene encendido y se recuerda la elección. La intensidad se ajusta en `CRT` dentro de `js/config.js`. Las tarjetas de menú quedan por encima, nítidas.
+El botón *CRT* (en *Opciones*) simula una pantalla de recreativa sin curvarla: barras horizontales oscuras alineadas con los píxeles reales de la pantalla, franjas muy suaves de fósforo rojo, verde y azul, viñeta en las esquinas y un poco más de brillo para compensar. Viene encendido y se recuerda la elección. La intensidad se ajusta en `CRT` dentro de `js/config.js`. Las tarjetas de menú quedan por encima, nítidas.
 
 ### Coches
 
@@ -145,7 +150,7 @@ js/game.js          simulación, IA, daños, lluvia, noche, puentes, recreativa 
 js/career.js        campeonato: dinero, garaje, mejoras y puntos
 js/audio.js         sonido sintetizado, música y voz del copiloto
 js/editor.js        editor de circuitos
-js/main.js          interfaz, pestañas y bucle principal
+js/main.js          interfaz, ventanas y bucle principal
 tools/build-single.mjs  empaqueta todo en dist/polvo-y-barro.html (un solo archivo)
 ```
 

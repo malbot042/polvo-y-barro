@@ -12,57 +12,25 @@
 </head>
 <body>
 <!--app-->
-<div class="wrap">
-  <header class="top">
-    <div>
-      <h1>Polvo <span class="y">y</span> Barro</h1>
-      <p class="tagline">Rally de recreativa en isométrico, para jugar en el navegador. Encadena tramos contra la cuenta atrás, corre contra tres rivales y diseña tus propios circuitos.</p>
-    </div>
-    <div class="pal" role="group" aria-label="Paleta de colores">
-      <span class="eyebrow">Paleta</span>
-      <button type="button" data-pal="azul" aria-pressed="true"><i style="--sa:#13283b;--sb:#e4572e"></i>Azul y naranja</button>
-      <button type="button" data-pal="bosque" aria-pressed="false"><i style="--sa:#17301f;--sb:#e2a400"></i>Bosque</button>
-      <button type="button" data-pal="noche" aria-pressed="false"><i style="--sa:#1d1b28;--sb:#5ec8e5"></i>Noche</button>
-    </div>
+<div class="shell">
+  <header class="topbar">
+    <span class="logo">Polvo <span class="y">y</span> Barro</span>
+    <nav class="menu" aria-label="Menú">
+      <button type="button" id="t-quick" data-win="quick">Carrera rápida</button>
+      <button type="button" id="t-arcade" data-win="arcade">Recreativa</button>
+      <button type="button" id="t-champ" data-win="champ">Campeonato</button>
+      <button type="button" id="t-edit" data-win="edit">Editor</button>
+      <button type="button" id="t-opts" data-win="opts">Opciones</button>
+      <button type="button" id="t-help" data-win="help">Ayuda</button>
+    </nav>
   </header>
 
-  <div class="app">
-    <div class="apptabs" role="tablist">
-      <button type="button" role="tab" id="t-play" aria-selected="true" aria-controls="pane-play">Jugar</button>
-      <button type="button" role="tab" id="t-arcade" aria-selected="false" aria-controls="pane-arcade">Recreativa</button>
-      <button type="button" role="tab" id="t-champ" aria-selected="false" aria-controls="pane-champ">Campeonato</button>
-      <button type="button" role="tab" id="t-edit" aria-selected="false" aria-controls="pane-edit">Editor de circuitos</button>
-    </div>
-
-    <div id="pane-play" class="pane" role="tabpanel" aria-labelledby="t-play">
-      <div class="evbar" id="p-event" hidden>
+  <main id="pane-play" class="play">
+    <div class="evbar" id="p-event" hidden>
         <div><span class="eyebrow" id="p-event-k">Campeonato</span><b id="p-event-t"></b></div>
         <button type="button" class="sbtn" id="p-event-back">Volver al campeonato</button>
       </div>
-      <div class="setup">
-        <label class="fld">Circuito<select id="p-track"></select></label>
-        <label class="fld">Coche<select id="p-model"></select></label>
-        <div class="fld">Decoración
-          <div class="carpick"><canvas id="p-car-prev" aria-hidden="true"></canvas><select id="p-car" aria-label="Decoración del coche"></select></div>
-        </div>
-        <label class="fld">Condiciones<select id="p-cond"></select></label>
-        <div class="fld">Modo
-          <div class="seg" role="group" aria-label="Modo de juego">
-            <button type="button" data-mode="rally" aria-pressed="true">Rally</button>
-            <button type="button" data-mode="carrera" aria-pressed="false">Carrera</button>
-          </div>
-        </div>
-        <div class="fld">Opciones
-          <div class="seg" role="group" aria-label="Sonido y pantalla">
-            <button type="button" id="snd" aria-pressed="true">Sonido sí</button>
-            <button type="button" id="voz" aria-pressed="true">Copiloto sí</button>
-            <button type="button" id="mus" aria-pressed="true">Música sí</button>
-            <button type="button" id="crt" aria-pressed="true" title="Barras horizontales de monitor de recreativa">CRT sí</button>
-          </div>
-        </div>
-        <button type="button" class="btn ghost" id="p-restart">Reiniciar</button>
-      </div>
-      <div class="game">
+    <div class="game">
         <div class="hud">
           <div><small id="h-al">Vuelta</small><b id="h-a">1/3</b></div>
           <div><small id="h-bl">Récord</small><b id="h-b">—</b></div>
@@ -70,6 +38,7 @@
           <div><small>km/h</small><b id="h-speed">0</b></div>
           <div><small>Nitro</small><b id="h-nitro">◆◆◇</b></div>
           <div><small>Daños</small><b id="h-dmg">0%</b></div>
+          <button type="button" class="hudbtn" id="p-restart" title="Reiniciar la carrera">Reiniciar</button>
           <button type="button" class="fsbtn" id="fs" aria-label="Pantalla completa" title="Pantalla completa (F)">
             <svg class="fs-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
             <svg class="fs-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>
@@ -93,9 +62,32 @@
           </div>
         </div>
       </div>
-    </div>
+  </main>
 
-    <div id="pane-arcade" class="pane" role="tabpanel" aria-labelledby="t-arcade" hidden>
+  <div class="wins" id="wins" hidden>
+    <section class="win" id="pane-quick" role="dialog" aria-modal="true" aria-labelledby="w-quick" hidden>
+      <header class="whead"><h2 id="w-quick">Carrera rápida</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
+        <div class="setup">
+          <label class="fld">Circuito<select id="p-track"></select></label>
+          <label class="fld">Coche<select id="p-model"></select></label>
+          <div class="fld">Decoración
+            <div class="carpick"><canvas id="p-car-prev" aria-hidden="true"></canvas><select id="p-car" aria-label="Decoración del coche"></select></div>
+          </div>
+          <label class="fld">Condiciones<select id="p-cond"></select></label>
+          <div class="fld">Modo
+            <div class="seg" role="group" aria-label="Modo de juego">
+              <button type="button" data-mode="rally" aria-pressed="true">Rally</button>
+              <button type="button" data-mode="carrera" aria-pressed="false">Carrera</button>
+            </div>
+          </div>
+        </div>
+        <div class="row"><button type="button" class="btn" data-close>Listo</button></div>
+      </div>
+    </section>
+    <section class="win wide" id="pane-arcade" role="dialog" aria-modal="true" aria-labelledby="w-arcade" hidden>
+      <header class="whead"><h2 id="w-arcade">Recreativa</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
       <div class="cgrid">
         <div class="cmain">
           <div class="box nextev">
@@ -119,8 +111,10 @@
         </div>
       </div>
     </div>
-
-    <div id="pane-champ" class="pane" role="tabpanel" aria-labelledby="t-champ" hidden>
+    </section>
+    <section class="win wide" id="pane-champ" role="dialog" aria-modal="true" aria-labelledby="w-champ" hidden>
+      <header class="whead"><h2 id="w-champ">Campeonato</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
       <div class="cstats">
         <div><small>Dinero</small><b id="c-money">$0</b></div>
         <div><small>Temporada</small><b id="c-season">1</b></div>
@@ -159,8 +153,10 @@
         </div>
       </div>
     </div>
-
-    <div id="pane-edit" class="pane" role="tabpanel" aria-labelledby="t-edit" hidden>
+    </section>
+    <section class="win wide" id="pane-edit" role="dialog" aria-modal="true" aria-labelledby="w-edit" hidden>
+      <header class="whead"><h2 id="w-edit">Editor de circuitos</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
       <div class="tools" role="toolbar" aria-label="Herramientas">
         <button type="button" class="tool" data-tool="trazo"><i style="--sw:#ffffff;border:1px solid #13283b"></i>Trazado</button>
         <button type="button" class="tool" data-tool="barro"><i style="--sw:#5b3c22"></i>Barro</button>
@@ -239,9 +235,31 @@
         </aside>
       </div>
     </div>
-  </div>
-
-  <section class="about">
+    </section>
+    <section class="win" id="pane-opts" role="dialog" aria-modal="true" aria-labelledby="w-opts" hidden>
+      <header class="whead"><h2 id="w-opts">Opciones</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
+        <div class="fld">Sonido y pantalla
+          <div class="seg" role="group" aria-label="Sonido y pantalla">
+            <button type="button" id="snd" aria-pressed="true">Sonido sí</button>
+            <button type="button" id="voz" aria-pressed="true">Copiloto sí</button>
+            <button type="button" id="mus" aria-pressed="true">Música sí</button>
+            <button type="button" id="crt" aria-pressed="true" title="Barras horizontales de monitor de recreativa">CRT sí</button>
+          </div>
+        </div>
+        <div class="pal" role="group" aria-label="Paleta de colores">
+      <span class="eyebrow">Paleta</span>
+      <button type="button" data-pal="azul" aria-pressed="true"><i style="--sa:#13283b;--sb:#e4572e"></i>Azul y naranja</button>
+      <button type="button" data-pal="bosque" aria-pressed="false"><i style="--sa:#17301f;--sb:#e2a400"></i>Bosque</button>
+      <button type="button" data-pal="noche" aria-pressed="false"><i style="--sa:#1d1b28;--sb:#5ec8e5"></i>Noche</button>
+    </div>
+        <p class="muted">Teclas: <kbd>M</kbd> silencia, <kbd>F</kbd> pantalla completa, <kbd>Esc</kbd> cierra las ventanas.</p>
+      </div>
+    </section>
+    <section class="win wide" id="pane-help" role="dialog" aria-modal="true" aria-labelledby="w-help" hidden>
+      <header class="whead"><h2 id="w-help">Ayuda</h2><button type="button" class="wclose" data-close aria-label="Cerrar">✕</button></header>
+      <div class="wbody">
+        <div class="about">
     <span class="eyebrow">La propuesta</span>
     <h2>Rally de recreativa con el caos del off-road</h2>
     <p>La cámara sigue a tu coche en perspectiva isométrica por circuitos más grandes que la pantalla, como en los rallies de recreativa: árboles, rocas, pacas, rampas y puentes tienen volumen, y los árboles que te tapan se vuelven transparentes. La conducción es arcade: con gas y volante a fondo la trasera se suelta, y al contravolantear el coche se endereza enseguida. Del off-road clásico vienen los saltos, el nitro, los empujones y los circuitos cerrados con cuatro coches.</p>
@@ -303,8 +321,11 @@
         <ul><li>Circuitos compartidos por enlace</li><li>Pantalla partida con mandos</li><li>Tablas de récords por circuito</li><li>Instalable en el móvil sin conexión</li></ul>
       </div>
     </div>
-  </section>
-  <footer>Código fuente en <a href="https://github.com/malbot042/polvo-y-barro" target="_blank" rel="noopener">github.com/malbot042/polvo-y-barro</a>. Los récords y circuitos guardados se quedan en este navegador.</footer>
+  </div>
+        <footer>Código fuente en <a href="https://github.com/malbot042/polvo-y-barro" target="_blank" rel="noopener">github.com/malbot042/polvo-y-barro</a>. Los récords y circuitos guardados se quedan en este navegador.</footer>
+      </div>
+    </section>
+  </div>
 </div>
 <!--/app-->
 <script type="module" src="js/main.js"></script>
