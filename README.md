@@ -39,17 +39,17 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 
 ### Circuitos
 
-Hay 16 circuitos: los seis originales y una vuelta al mundo con dos por continente. Cada uno de estos diez dura unos 1:20 con el piloto de referencia de la IA (compacto de serie, en seco), con las vueltas ajustadas para ello.
+Hay 20 circuitos, cuatro por continente. Cada uno dura unos 1:20 con el piloto de referencia de la IA (un Grupo A de serie, en seco), con las vueltas ajustadas para ello.
 
 | Continente | Circuitos |
 |---|---|
-| Europa | Circuito de los Pirineos (asfalto, 3 vueltas) · Lagos de Finlandia (tierra rápida, 3 vueltas) |
-| África | Sabana de Kenia (sabana, 2 vueltas) · Pistas del Atlas (desierto, tierra y asfalto, 2 vueltas) |
-| Asia | Selva de Borneo (selva, 2 vueltas) · Bosques de Hokkaido (nieve, 2 vueltas) |
-| América | Altiplano Andino (desierto, 2 vueltas) · Selva de Yucatán (selva, tierra y asfalto, 2 vueltas) |
-| Oceanía | Desierto Rojo de Australia (tierra roja, 3 vueltas) · Bosques de Nueva Zelanda (tierra y nieve, 2 vueltas) |
+| Europa | Circuito de los Pirineos (asfalto) · Lagos de Finlandia (tierra rápida) · Montañas de Córcega (asfalto) · Bosques de Gales (tierra) |
+| África | Sabana de Kenia · Pistas del Atlas (desierto) · Llanuras del Serengeti (sabana rápida) · Dunas del Sáhara (desierto) |
+| Asia | Selva de Borneo · Bosques de Hokkaido (nieve) · Caminos de Rajastán (tierra roja) · Arrozales de Yunnan (selva) |
+| América | Altiplano Andino (desierto) · Selva de Yucatán · Bosques de la Patagonia (nieve) · Sierra de Guanajuato (desierto) |
+| Oceanía | Desierto Rojo de Australia · Bosques de Nueva Zelanda · Costa de Tasmania · Islas Fiyi (selva) |
 
-Los trazados están generados para no solaparse consigo mismos y tener curvas de rally; los entornos selva, sabana y tierra roja traen palmeras y acacias.
+Los trazados están generados para no solaparse consigo mismos y tener curvas de rally. La temporada del campeonato y los seis tramos de la recreativa recorren varios continentes.
 
 ### Campeonato
 
@@ -68,7 +68,7 @@ Seco, lluvia, noche y lluvia de noche. La lluvia quita un 20 % de agarre en asfa
 
 ### Puentes
 
-Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte automáticamente en un puente. Los coches de arriba y los de abajo no chocan entre sí, y el puente tapa a los que pasan por debajo. Funciona igual en los circuitos del editor. El circuito *Ocho de la Fábrica* tiene uno.
+Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte automáticamente en un puente. Los coches de arriba y los de abajo no chocan entre sí, y el puente tapa a los que pasan por debajo. Ninguno de los circuitos incluidos se cruza, pero funciona en los que hagas con el editor.
 
 ### Sonido
 
