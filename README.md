@@ -37,6 +37,20 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
 
+### Circuitos
+
+Hay 16 circuitos: los seis originales y una vuelta al mundo con dos por continente. Cada uno de estos diez dura unos 1:20 con el piloto de referencia de la IA (compacto de serie, en seco), con las vueltas ajustadas para ello.
+
+| Continente | Circuitos |
+|---|---|
+| Europa | Circuito de los Pirineos (asfalto, 3 vueltas) · Lagos de Finlandia (tierra rápida, 3 vueltas) |
+| África | Sabana de Kenia (sabana, 2 vueltas) · Pistas del Atlas (desierto, tierra y asfalto, 2 vueltas) |
+| Asia | Selva de Borneo (selva, 2 vueltas) · Bosques de Hokkaido (nieve, 2 vueltas) |
+| América | Altiplano Andino (desierto, 2 vueltas) · Selva de Yucatán (selva, tierra y asfalto, 2 vueltas) |
+| Oceanía | Desierto Rojo de Australia (tierra roja, 3 vueltas) · Bosques de Nueva Zelanda (tierra y nieve, 2 vueltas) |
+
+Los trazados están generados para no solaparse consigo mismos y tener curvas de rally; los entornos selva, sabana y tierra roja traen palmeras y acacias.
+
 ### Campeonato
 
 Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noche o ambas. En las carreras compites contra tres rivales en pista. En los rallies corres solo y te comparas con los tiempos de los rivales, que se calculan simulando su pasada por el mismo tramo.
@@ -95,7 +109,7 @@ Solo hay coches de rally de Grupo A de finales de los 80 y principios de los 90:
 - Al seleccionar un punto puedes elegir la **superficie** (asfalto, tierra, nieve) y el **ancho** del tramo que empieza en él.
 - **Objetos**: barro, agua, rampa, nitro, árbol, roca, paja y cono. Arrastra cualquier objeto para moverlo.
 - **Tipo**: circuito cerrado con vueltas, o tramo de salida a meta.
-- **Entorno**: pradera, desierto o montaña nevada. Decide qué hay fuera de la pista.
+- **Entorno**: pradera, desierto, montaña nevada, selva, sabana o tierra roja. Decide qué hay fuera de la pista y qué árboles y rocas lo decoran.
 - *Probar* lo carga en el juego, *Guardar* lo guarda en el navegador y *Exportar* da un texto JSON para compartir.
 - Deshacer: Ctrl/Cmd + Z. Quitar el punto seleccionado: Supr.
 

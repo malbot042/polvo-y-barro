@@ -31,6 +31,21 @@ export const THEME = {
     off: { label: 'Nieve honda', grip: 2.0, max: 0.45, acc: 0.50, dust: '#ffffff', skid: 'rgba(120,140,170,.42)' },
     decor: [['pino', 0.65], ['roca', 0.25], ['arbusto', 0.1]],
   },
+  selva: {
+    label: 'Selva', ground: '#3f7a3a', ground2: '#356d31', verge: '#7a6a3f', bush: '#2f5f2a',
+    off: { label: 'Maleza', grip: 3.0, max: 0.50, acc: 0.55, dust: '#4f6e2c', skid: 'rgba(40,55,20,.40)' },
+    decor: [['palmera', 0.4], ['arbol', 0.4], ['arbusto', 0.2]],
+  },
+  sabana: {
+    label: 'Sabana', ground: '#c9b264', ground2: '#bba356', verge: '#b08a55', bush: '#8d8a42',
+    off: { label: 'Hierba seca', grip: 3.2, max: 0.55, acc: 0.60, dust: '#d8c48a', skid: 'rgba(110,85,40,.32)' },
+    decor: [['acacia', 0.35], ['roca', 0.2], ['arbusto', 0.45]],
+  },
+  outback: {
+    label: 'Tierra roja', ground: '#b8643a', ground2: '#a85a33', verge: '#9c5a36', bush: '#7d7a45',
+    off: { label: 'Arena roja', grip: 3.0, max: 0.50, acc: 0.55, dust: '#d58a5a', skid: 'rgba(110,50,25,.35)' },
+    decor: [['roca', 0.35], ['arbol', 0.15], ['acacia', 0.15], ['arbusto', 0.35]],
+  },
 };
 
 // r: radio de colisión. solid: los coches chocan con él.
@@ -39,6 +54,8 @@ export const OBJ = {
   arbol:   { r: 12, solid: true },
   roca:    { r: 11, solid: true },
   cactus:  { r: 7,  solid: true },
+  palmera: { r: 7,  solid: true },
+  acacia:  { r: 9,  solid: true },
   paja:    { r: 10, solid: true },
   arbusto: { r: 0,  solid: false },
   cono:    { r: 5 },

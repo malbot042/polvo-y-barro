@@ -575,6 +575,21 @@ export function drawDecor(c, d, th) {
       c.fillStyle = '#6a9a4f'; c.beginPath(); c.arc(d.x - 1.5, d.y - 1.5, 3 * s, 0, 7); c.fill();
       break;
     }
+    case 'palmera': {
+      const rot = R() * 6.28;
+      c.strokeStyle = '#3f7a2c'; c.lineWidth = 3 * s; c.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const a = rot + (k / 7) * 6.28;
+        c.beginPath(); c.moveTo(d.x, d.y); c.quadraticCurveTo(d.x + Math.cos(a + 0.3) * 9 * s, d.y + Math.sin(a + 0.3) * 9 * s, d.x + Math.cos(a) * 15 * s, d.y + Math.sin(a) * 15 * s); c.stroke();
+      }
+      c.fillStyle = '#6b4a2a'; c.beginPath(); c.arc(d.x, d.y, 2.5 * s, 0, 7); c.fill();
+      break;
+    }
+    case 'acacia': {
+      c.fillStyle = '#5f7a32'; c.beginPath(); c.ellipse(d.x, d.y, 18 * s, 13 * s, R() * 3, 0, 7); c.fill();
+      c.fillStyle = '#76913f'; c.beginPath(); c.ellipse(d.x - 3, d.y - 3, 10 * s, 7 * s, R() * 3, 0, 7); c.fill();
+      break;
+    }
     case 'paja': {
       c.fillStyle = '#d4b25a'; c.beginPath(); c.arc(d.x, d.y, 10, 0, 7); c.fill();
       c.strokeStyle = '#a8873a'; c.lineWidth = 1.2;

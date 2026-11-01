@@ -613,6 +613,9 @@ function updateHud() {
     [THEME.pradera.off, 'Fuera de pista en pradera', THEME.pradera.ground],
     [THEME.desierto.off, 'Fuera de pista en desierto', THEME.desierto.ground],
     [THEME.nieve.off, 'Fuera de pista en montaña', THEME.nieve.ground],
+    [THEME.selva.off, 'Fuera de pista en selva', THEME.selva.ground],
+    [THEME.sabana.off, 'Fuera de pista en sabana', THEME.sabana.ground],
+    [THEME.outback.off, 'Fuera de pista en tierra roja', THEME.outback.ground],
   ];
   $('surf-body').innerHTML = rows.map(([s, where, col]) => {
     const g = Math.round((s.grip / base.grip) * 100), m = Math.round(s.max * 100);

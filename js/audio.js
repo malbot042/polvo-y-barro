@@ -316,6 +316,9 @@ export function createAudio() {
         case 'off-pradera': hiss = 0.12 * vs; hissF = 1700; gravel = 0.08 * vs; break;
         case 'off-desierto': hiss = 0.2 * vs; hissF = 2300; gravel = 0.14 * vs; break;
         case 'off-nieve': hiss = 0.18 * vs; hissF = 700; break;
+        case 'off-selva': hiss = 0.14 * vs; hissF = 1400; gravel = 0.06 * vs; break;
+        case 'off-sabana': hiss = 0.16 * vs; hissF = 2000; gravel = 0.1 * vs; break;
+        case 'off-outback': hiss = 0.2 * vs; hissF = 2200; gravel = 0.16 * vs; break;
         default: gravel = 0.2 * vs; hiss = 0.1 * vs;
       }
     }

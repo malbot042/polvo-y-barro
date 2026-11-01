@@ -66,13 +66,34 @@ const SHAPES = {
     c.beginPath(); c.roundRect(6.4, -h * 0.85, 3.6, 11, 1.8); c.fill(); c.fillRect(2, -h * 0.55, 6, 3);
     c.fillStyle = '#6a9a4f'; c.fillRect(-2, -h + 2, 1.6, h - 3);
   },
+  palmera(c, R) {
+    const lean = (R() - 0.5) * 10, h = 34 + R() * 6;
+    c.strokeStyle = '#7a5a36'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(lean * 0.2, -h * 0.5, lean, -h); c.stroke();
+    c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 1;
+    for (let y = 4; y < h; y += 4) { const t = y / h; c.beginPath(); c.moveTo(lean * t * t - 1.5, -y); c.lineTo(lean * t * t + 1.5, -y); c.stroke(); }
+    c.lineWidth = 2.6;
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * 6.28 + R() * 0.4, dx = Math.cos(a) * 15, dy = Math.sin(a) * 6;
+      c.strokeStyle = dy < 0 ? '#2f6b2c' : '#3f8a36';
+      c.beginPath(); c.moveTo(lean, -h); c.quadraticCurveTo(lean + dx * 0.6, -h - 6 + dy * 0.5, lean + dx, -h + 5 + dy); c.stroke();
+    }
+    c.fillStyle = '#5b3f22'; c.beginPath(); c.arc(lean, -h + 1, 2, 0, 7); c.fill();
+  },
+  acacia(c, R) {
+    c.strokeStyle = '#5a3d22'; c.lineWidth = 2.2; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -12); c.lineTo(-7, -20); c.moveTo(0, -12); c.lineTo(6, -21); c.stroke();
+    const w = 20 + R() * 4;
+    c.fillStyle = '#4f6a2a'; c.beginPath(); c.ellipse(0, -23, w, 5.5, 0, 0, 7); c.fill();
+    c.fillStyle = '#6f8c3a'; c.beginPath(); c.ellipse(-3, -25.5, w * 0.75, 3.5, 0, 0, 7); c.fill();
+  },
   paja(c) {
     box(c, 9, 6, 9, '#e3c46a', '#c9a64e', '#a8873a');
     c.strokeStyle = 'rgba(120,90,30,.45)'; c.lineWidth = 0.5;
     for (let k = 1; k < 4; k++) { const z = (k * 9) / 4; c.beginPath(); c.moveTo(pu(-9, 6), pv(-9, 6, z)); c.lineTo(pu(9, 6), pv(9, 6, z)); c.lineTo(pu(9, -6), pv(9, -6, z)); c.stroke(); }
   },
 };
-const BOX = { pino: [36, 58, 18, 54], arbol: [44, 50, 22, 46], roca: [30, 22, 15, 18], cactus: [26, 40, 13, 37], paja: [30, 26, 15, 18] };
+const BOX = { palmera: [44, 56, 22, 52], acacia: [52, 36, 26, 32], pino: [36, 58, 18, 54], arbol: [44, 50, 22, 46], roca: [30, 22, 15, 18], cactus: [26, 40, 13, 37], paja: [30, 26, 15, 18] };
 
 const bbCache = new Map();
 function billboard(kind, variant, snow) {
