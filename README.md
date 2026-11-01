@@ -64,7 +64,7 @@ Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noc
 
 ### Condiciones
 
-Seco, lluvia, noche y lluvia de noche. La lluvia quita un 20 % de agarre en asfalto y tierra, alarga la frenada y levanta agua al pasar. De noche solo se ve lo que alumbran los faros (más lejos con faros auxiliares) y las farolas de la salida y los controles. Con lluvia de noche hay relámpagos y truenos.
+Seco, lluvia, noche y lluvia de noche. La lluvia quita un 20 % de agarre en asfalto y tierra, alarga la frenada y levanta agua al pasar. De noche hay luz de luna azulada: se ve la pista, y los faros (más lejos con faros auxiliares) y las farolas de la salida y los controles alumbran con bordes suaves. La intensidad se ajusta en `NIGHT` dentro de `js/config.js`. Con lluvia de noche hay relámpagos y truenos.
 
 ### Puentes
 

@@ -3,7 +3,7 @@
 // simulados de los rivales en los rallies del campeonato y el modo recreativa
 // (cuenta atrás, controles que dan tiempo y puntos por derrapar).
 import { WW, WH, SP, M_PER_PX, ISO_C, clamp, wrapA, store, fmtTime, isoView } from './util.js';
-import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, DEFAULT_CAR, carSpec } from './config.js';
+import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, NIGHT, DEFAULT_CAR, carSpec } from './config.js';
 import { buildTrack, nearestGlobal, idxAdd, trackKey } from './track.js';
 import { drawCarIso, drawCarShadowIso, carFront, carWheels, carLivery, GHOST_LIVERY } from './car.js';
 import { drawDecorIso, decorTop, hasBillboard, drawConeIso, drawNitroIso, drawLampIso, LAMP_H, drawRampIso, drawArchIso, bridgePieces, drawBridgePiece } from './iso.js';
@@ -720,30 +720,35 @@ export function createGame(cv, hooks) {
 
   const livOf = (c) => (c.me ? myLivery() : c.livery);
 
-  // Noche: capa oscura con huecos para faros y farolas, luego brillos aditivos
+  // Noche: capa de luz de luna con huecos suaves para faros y farolas, luego brillos aditivos
   function renderNight(V) {
     if (light.width !== cv.width || light.height !== cv.height) { light.width = cv.width; light.height = cv.height; }
     lctx.setTransform(1, 0, 0, 1, 0, 0);
     lctx.globalCompositeOperation = 'source-over';
-    lctx.fillStyle = `rgba(4,8,20,${0.86 - lightning * 0.7})`;
+    lctx.clearRect(0, 0, light.width, light.height);
+    lctx.fillStyle = `rgba(${NIGHT.tint},${Math.max(0, NIGHT.dark - lightning * 0.5)})`;
     lctx.fillRect(0, 0, light.width, light.height);
     lctx.globalCompositeOperation = 'destination-out';
     V.set(lctx, 0);
+    const LR = NIGHT.lamp;
     for (const [x, y] of lamps) {
-      const g = lctx.createRadialGradient(x, y, 2, x, y, 80);
-      g.addColorStop(0, 'rgba(0,0,0,.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = g; lctx.fillRect(x - 80, y - 80, 160, 160);
+      const g = lctx.createRadialGradient(x, y, 0, x, y, LR);
+      g.addColorStop(0, 'rgba(0,0,0,.9)'); g.addColorStop(0.5, 'rgba(0,0,0,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = g; lctx.fillRect(x - LR, y - LR, LR * 2, LR * 2);
     }
     for (const c of cars) {
-      const L = livOf(c), fr = carFront(c.model), R = L.pod ? 360 : 260;
+      const L = livOf(c), fr = carFront(c.model), R = L.pod ? NIGHT.beamPod : NIGHT.beam, w = NIGHT.spread * (L.pod ? 1.15 : 1);
       V.set(lctx, carZ(c)); lctx.translate(c.x, c.y); lctx.rotate(c.a);
-      const g = lctx.createRadialGradient(fr, 0, 4, fr, 0, R);
-      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.55, 'rgba(0,0,0,.7)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = g;
-      lctx.beginPath(); lctx.moveTo(fr - 2, -7); lctx.lineTo(fr + R, -R * (L.pod ? 0.5 : 0.4)); lctx.lineTo(fr + R, R * (L.pod ? 0.5 : 0.4)); lctx.lineTo(fr - 2, 7); lctx.closePath(); lctx.fill();
-      const a = lctx.createRadialGradient(0, 0, 4, 0, 0, 44);
-      a.addColorStop(0, 'rgba(0,0,0,.8)'); a.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = a; lctx.fillRect(-44, -44, 88, 88);
+      // haz con bordes difuminados: varias pasadas cada vez más abiertas y tenues
+      for (const [k, al] of [[1.5, 0.16], [1.3, 0.18], [1.1, 0.22], [0.9, 0.26], [0.7, 0.3], [0.5, 0.3]]) {
+        const g = lctx.createRadialGradient(fr, 0, 4, fr, 0, R);
+        g.addColorStop(0, `rgba(0,0,0,${al})`); g.addColorStop(0.6, `rgba(0,0,0,${al * 0.6})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+        lctx.fillStyle = g;
+        lctx.beginPath(); lctx.moveTo(fr - 2, -8); lctx.lineTo(fr + R, -R * w * k); lctx.lineTo(fr + R, R * w * k); lctx.lineTo(fr - 2, 8); lctx.closePath(); lctx.fill();
+      }
+      const A = NIGHT.aura, a = lctx.createRadialGradient(0, 0, 4, 0, 0, A);
+      a.addColorStop(0, 'rgba(0,0,0,.85)'); a.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = a; lctx.fillRect(-A, -A, A * 2, A * 2);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(light, 0, 0);

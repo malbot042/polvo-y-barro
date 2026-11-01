@@ -230,6 +230,17 @@ export const ARCADE = {
   countdown: 9,      // segundos para decidir si continúas
 };
 
+// Noche: luz de luna azulada y faros que alumbran lejos y con bordes suaves
+export const NIGHT = {
+  dark: 0.6,           // oscuridad general (0 = de día, 1 = negro)
+  tint: '12,22,52',    // color de la noche (RGB)
+  beam: 340,           // alcance de los faros (px)
+  beamPod: 440,        // con faros auxiliares
+  spread: 0.55,        // apertura del haz
+  aura: 70,            // luz alrededor del coche
+  lamp: 120,           // radio de las farolas
+};
+
 // Efecto de monitor de recreativa (sin curvatura): barras horizontales, rejilla de fósforo y viñeta
 export const CRT = {
   period: 3,       // separación entre barras, en px de pantalla
