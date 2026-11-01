@@ -3,6 +3,7 @@ import { WW, WH, SP, clamp, lerp, wrapA, rng, hashStr } from './util.js';
 import { SURF, ROAD_SURFACES, THEME, OBJ, DEFAULT_W } from './config.js';
 
 const CELL = 80;
+export const BRIDGE_H = 18;   // altura del tablero de los puentes (px)
 
 function cr(a, b, c, d, t) {
   const t2 = t * t, t3 = t2 * t;
@@ -195,7 +196,7 @@ export function buildTrack(def, layers, opts = {}) {
   for (const s of S) { x0 = Math.min(x0, s.x); y0 = Math.min(y0, s.y); x1 = Math.max(x1, s.x); y1 = Math.max(y1, s.y); }
   T.bounds = { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
 
-  if (layers) renderLayers(T, layers);
+  if (layers) renderLayers(T, layers, opts.iso);
   return T;
 }
 
@@ -210,7 +211,7 @@ function segCross(a, b, c, d) {
 // Cruces del trazado consigo mismo: el paso que llega después va por un puente
 function findBridges(T) {
   const { S, n, loop } = T, segN = loop ? n : n - 1, found = [];
-  for (const s of S) s.lv = 0;
+  for (const s of S) { s.lv = 0; s.z = 0; }
   for (let i = 0; i < segN; i++) {
     const a = S[i], b = S[(i + 1) % n];
     const cx = Math.floor(a.x / CELL), cy = Math.floor(a.y / CELL);
@@ -230,7 +231,9 @@ function findBridges(T) {
     const half = Math.ceil((S[i].w / 2 + 40) / SP) + 3;
     for (let k = j - half; k <= j + half; k++) {
       const q = loop ? ((k % n) + n) % n : clamp(k, 0, n - 1);
-      S[q].lv = 1;
+      // altura del tablero: sube por las rampas de acceso de cada extremo
+      const e = clamp(Math.min(k - j + half, j + half - k) / 7, 0, 1);
+      S[q].lv = 1; S[q].z = Math.max(S[q].z, BRIDGE_H * e * e * (3 - 2 * e));
     }
     return { from: j - half, to: j + half, under: i };
   });
@@ -403,7 +406,8 @@ function renderBridges(T) {
   }
 }
 
-export function renderLayers(T, layers) {
+// iso: el juego dibuja con volumen rampas, árboles, rocas, postes y puentes; aquí solo va el suelo
+export function renderLayers(T, layers, iso = false) {
   const g = layers.g.getContext('2d'), t = layers.t.getContext('2d');
   const th = T.theme, S = T.S, n = T.n, segN = T.loop ? n : n - 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -425,6 +429,7 @@ export function renderLayers(T, layers) {
   for (const p of T.patches) drawPatch(g, p);
   drawChecker(g, S[T.start]);
   if (!T.loop) drawChecker(g, S[T.finish]);
+  if (iso) return;
   for (const r of T.ramps) drawRamp(g, r);
 
   // capa superior: copas de árboles, rocas, postes de control

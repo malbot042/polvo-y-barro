@@ -55,8 +55,13 @@ export const PHYS = {
   brake: 430,
   reverse: 160,
   revMax: 80,
-  steer: 2.9,    // giro (rad/s) a plena dirección
+  steer: 3.2,    // giro (rad/s) a plena dirección
   carR: 10,      // radio de colisión del coche
+  // conducción arcade
+  drift: 0.5,    // agarre que se pierde girando a fondo con gas a velocidad (derrape de potencia)
+  counter: 1.9,  // multiplicador de agarre al contravolantear: el coche se endereza enseguida
+  keep: 0.4,     // parte de la velocidad lateral que el derrape convierte en avance en vez de perderla
+  yaw: 0.3,      // giro extra (máx.) mientras el coche va cruzado
 };
 
 // ---------- Coches, mejoras y condiciones (fase 2) ----------
@@ -87,6 +92,20 @@ export const CONDITIONS = {
   lluvia:         { label: 'Lluvia',           grip: 0.8, night: false, rain: true },
   noche:          { label: 'Noche',            grip: 1.0, night: true,  rain: false },
   'lluvia-noche': { label: 'Lluvia de noche',  grip: 0.8, night: true,  rain: true },
+};
+
+// Modo recreativa: cuenta atrás, controles que dan tiempo y puntos
+export const ARCADE = {
+  gatePts: 250,      // puntos por pasar un control
+  secPts: 100,       // puntos por cada segundo que sobra al llegar a meta
+  carry: 1,          // parte del tiempo sobrante que pasa al tramo siguiente
+  driftSpeed: 110,   // velocidad mínima (px/s) para que un derrape puntúe
+  driftSlide: 45,    // deslizamiento lateral mínimo (px/s)
+  driftPts: 1.6,     // puntos por px/s de deslizamiento y segundo
+  multEvery: 1.2,    // cada tantos segundos de derrape seguido sube el multiplicador
+  maxMult: 5,
+  continues: 3,      // continuaciones por partida
+  countdown: 9,      // segundos para decidir si continúas
 };
 
 export function carSpec(id, up = {}) {

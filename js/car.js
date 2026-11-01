@@ -1,7 +1,8 @@
-// Coches de rally vistos desde arriba. Tres modelos (compacto, coupé y pick-up de raid),
-// cada uno con su silueta y sus detalles. Se pre-dibujan en alta resolución (sprite) por
-// modelo + decoración + dorsal, y en tiempo real se les añade suciedad y daños.
-import { rng } from './util.js';
+// Coches de rally. Tres modelos (compacto, coupé y pick-up de raid), cada uno con su silueta
+// y sus detalles. La vista cenital se pre-dibuja en alta resolución (sprite) por modelo +
+// decoración + dorsal, y en tiempo real se le añaden suciedad y daños. En el juego, el coche
+// se ve en isométrico montando capas de ese sprite a distintas alturas (sprite stacking).
+import { rng, lerp, shade, isoView } from './util.js';
 
 const K = 8;              // resolución del sprite: px por unidad de mundo
 const SW = 40, SH = 24;   // tamaño del sprite en unidades de mundo
@@ -419,16 +420,111 @@ export function drawCar(c, car, L, alpha = 1) {
 // Datos para la iluminación nocturna: posición del frontal y si lleva faros auxiliares
 export function carFront(id) { return model(id).front; }
 
-// Vista previa en un canvas de interfaz
-export function drawCarPreview(cv, L, num = '1', rot = -Math.PI / 2, id = 'compacto', extraState = {}) {
+// ---------- Vista isométrica ----------
+
+const KS = 4;                       // resolución de las capas laterales
+const BODY_Z = 5.5, ROOF_Z = 9.5;   // altura del capó y del techo
+// Habitáculo: base y techo como [x trasera, x delantera, medio ancho]
+const CABIN = {
+  compacto: { base: [-9.9, 6.7, 5.9], top: [-6.6, 2.7, 5.6] },
+  coupe:    { base: [-11.6, 4.9, 5.7], top: [-7.4, 0.5, 5.3] },
+  raid:     { base: [-3.6, 7.8, 6.9], top: [-3.2, 4.7, 6.8] },
+};
+export const CAR_TOP = ROOF_Z;
+
+const sides = new Map();
+function side(id, col) {
+  const k = id + col;
+  let cv = sides.get(k);
+  if (!cv) {
+    if (sides.size > 60) sides.clear();
+    cv = document.createElement('canvas');
+    cv.width = SW * KS; cv.height = SH * KS;
+    const c = cv.getContext('2d');
+    c.setTransform(KS, 0, 0, KS, (SW * KS) / 2, (SH * KS) / 2);
+    bodyPath(c, model(id)); c.fillStyle = col; c.fill();
+    sides.set(k, cv);
+  }
+  return cv;
+}
+
+// Sombra del coche sobre el suelo (o sobre el tablero del puente, a la altura z0)
+export function drawCarShadowIso(c, V, car, z0 = 0) {
+  const id = MODELS[car.model] ? car.model : 'compacto', h = car.h || 0;
+  V.set(c, z0);
+  c.globalAlpha = 0.85 * Math.max(0.35, 1 - h / 60);
+  c.translate(car.x + 1.5 + h * 0.55, car.y + 1.5 + h * 0.55); c.rotate(car.a);
+  c.drawImage(layer('sh', id, () => makeShadow(id)), -SW / 2, -SH / 2, SW, SH);
+  c.globalAlpha = 1;
+}
+
+// Coche en isométrico: ruedas, laterales, capó con suciedad y daños, cabina acristalada y techo.
+// z0: altura del suelo bajo el coche (tablero de un puente); dx, dy: desplazamiento en pantalla.
+export function drawCarIso(c, V, car, L, z0 = 0, dx = 0, dy = 0) {
+  const id = MODELS[car.model] ? car.model : 'compacto', M = model(id), cab = CABIN[id];
+  const base = z0 + (car.h || 0);
+  const at = (z) => { V.set(c, base + z, dx, dy); c.translate(car.x, car.y); c.rotate(car.a); };
+  const [tl, tw] = M.tire;
+  for (const z of [0.3, 1.1, 1.9, 2.7]) {
+    at(z);
+    c.fillStyle = z > 2 ? '#2b2e33' : '#0e0f11';
+    for (const [x, y, front] of wheelsOf(M)) {
+      if (front && car.steer) { c.save(); c.translate(x, y); c.rotate(car.steer * 0.42); c.fillRect(-tl / 2, -tw / 2, tl, tw); c.restore(); }
+      else c.fillRect(x - tl / 2, y - tw / 2, tl, tw);
+    }
+  }
+  const lo = side(id, '#17191c'), mid = side(id, shade(L.base, 0.52)), hi = side(id, shade(L.base, 0.74));
+  for (let z = 1.6; z < BODY_Z; z += 0.5) { at(z); c.drawImage(z < 2.2 ? lo : z < 3.8 ? mid : hi, -SW / 2, -SH / 2, SW, SH); }
+  const [lx, ly, len] = M.lamps;
+  at(BODY_Z - 1.2);
+  c.fillStyle = car.brk ? '#ff3b2a' : '#8e1a14';
+  for (const s of [-1, 1]) c.fillRect(lx - 0.4, s > 0 ? ly : -ly - len, 1, len);
+  at(BODY_Z);
+  const spr = sprite(L, car.num, id);
+  c.drawImage(spr, -SW / 2, -SH / 2, SW, SH);
+  const dirt = [];
+  if (car.dirt) {
+    for (const k in DIRT) {
+      const v = car.dirt[k];
+      if (v > 0.02) dirt.push([layer('d' + k, id, () => makeDirt(DIRT[k], id)), Math.min(0.6, v * 0.75)]);
+    }
+  }
+  for (const [img, a] of dirt) { c.globalAlpha = a; c.drawImage(img, -SW / 2, -SH / 2, SW, SH); }
+  if (car.dmg > 0.05) { c.globalAlpha = Math.min(1, car.dmg * 1.3); c.drawImage(layer('dm', id, () => makeDamage(id)), -SW / 2, -SH / 2, SW, SH); }
+  c.globalAlpha = 1;
+  if (car.brk) {
+    c.globalAlpha = 0.45; c.fillStyle = '#ff2a1a';
+    for (const s of [-1, 1]) { c.beginPath(); c.arc(lx - 0.5, s * (ly + len / 2), 2.4, 0, 7); c.fill(); }
+    c.globalAlpha = 1;
+  }
+  const glassCol = '#1c2833', pillar = shade(L.base, 0.68);
+  for (let z = BODY_Z + 0.5; z < ROOF_Z; z += 0.5) {
+    const t = (z - BODY_Z) / (ROOF_Z - BODY_Z);
+    const x0 = lerp(cab.base[0], cab.top[0], t), x1 = lerp(cab.base[1], cab.top[1], t), hw = lerp(cab.base[2], cab.top[2], t);
+    at(z);
+    c.fillStyle = z > ROOF_Z - 1.1 ? pillar : glassCol;
+    c.beginPath(); c.roundRect(x0, -hw, x1 - x0, hw * 2, 1.2); c.fill();
+  }
+  at(ROOF_Z);
+  const [rx0, rx1, rhw] = cab.top, sx = (rx0 + SW / 2) * K, sy = (SH / 2 - rhw) * K, sw = (rx1 - rx0) * K, sh = rhw * 2 * K;
+  c.drawImage(spr, sx, sy, sw, sh, rx0, -rhw, rx1 - rx0, rhw * 2);
+  for (const [img, a] of dirt) { c.globalAlpha = a * 0.7; c.drawImage(img, sx, sy, sw, sh, rx0, -rhw, rx1 - rx0, rhw * 2); }
+  c.globalAlpha = 1;
+}
+
+// Vista previa en un canvas de interfaz, en isométrico y de tres cuartos
+export function drawCarPreview(cv, L, num = '1', id = 'compacto', extraState = {}) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = cv.clientWidth || cv.width, h = cv.clientHeight || cv.height;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const c = cv.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, cv.width, cv.height);
-  const vertical = Math.abs(Math.sin(rot)) > 0.5;
-  const s = Math.min(cv.width / ((vertical ? SH : SW) - 3), cv.height / ((vertical ? SW : SH) - 3));
-  c.setTransform(s, 0, 0, s, cv.width / 2 - 1 * s, cv.height / 2 - 1.4 * s);
+  const s = Math.min(cv.width / 36, cv.height / 22);
+  const V = isoView(s, 0, 0, cv.width, cv.height + ROOF_Z * s * 0.8);
   c.imageSmoothingQuality = 'high';
-  drawCar(c, { x: 0, y: 0, a: rot, h: 0, num, steer: 0, model: id, ...extraState }, L, 1);
+  const car = { x: 0, y: 0, a: -0.3, h: 0, num, steer: 0, model: id, ...extraState };
+  drawCarShadowIso(c, V, car);
+  drawCarIso(c, V, car, L);
+  c.setTransform(1, 0, 0, 1, 0, 0);
 }

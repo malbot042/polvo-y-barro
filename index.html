@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Polvo y Barro</title>
-<meta name="description" content="Juego de rally y off-road en 2D para el navegador, con editor de circuitos.">
+<meta name="description" content="Juego de rally y off-road en isométrico para el navegador, con modo recreativa, campeonato y editor de circuitos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Saira:ital,wdth,wght@0,50..125,100..900;1,50..125,100..900&display=swap">
@@ -16,7 +16,7 @@
   <header class="top">
     <div>
       <h1>Polvo <span class="y">y</span> Barro</h1>
-      <p class="tagline">Rally y off-road en vista cenital, para jugar en el navegador. Corre contra el reloj o contra tres rivales, y diseña tus propios circuitos.</p>
+      <p class="tagline">Rally de recreativa en isométrico, para jugar en el navegador. Encadena tramos contra la cuenta atrás, corre contra tres rivales y diseña tus propios circuitos.</p>
     </div>
     <div class="pal" role="group" aria-label="Paleta de colores">
       <span class="eyebrow">Paleta</span>
@@ -29,6 +29,7 @@
   <div class="app">
     <div class="apptabs" role="tablist">
       <button type="button" role="tab" id="t-play" aria-selected="true" aria-controls="pane-play">Jugar</button>
+      <button type="button" role="tab" id="t-arcade" aria-selected="false" aria-controls="pane-arcade">Recreativa</button>
       <button type="button" role="tab" id="t-champ" aria-selected="false" aria-controls="pane-champ">Campeonato</button>
       <button type="button" role="tab" id="t-edit" aria-selected="false" aria-controls="pane-edit">Editor de circuitos</button>
     </div>
@@ -82,12 +83,38 @@
             <button type="button" class="pad" data-k="l" aria-label="Girar a la izquierda">◀</button>
             <button type="button" class="pad" data-k="r" aria-label="Girar a la derecha">▶</button>
           </div>
-          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Shift</kbd> nitro · <kbd>Enter</kbd> empezar · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
+          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Shift</kbd> nitro · <kbd>Enter</kbd> empezar o seguir · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
           <div class="grp right">
             <button type="button" class="pad" data-k="hb" aria-label="Freno de mano">Mano</button>
             <button type="button" class="pad" data-k="n" aria-label="Nitro">N2O</button>
             <button type="button" class="pad" data-k="b" aria-label="Freno">Freno</button>
             <button type="button" class="pad gas" data-k="t" aria-label="Acelerar">Gas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pane-arcade" class="pane" role="tabpanel" aria-labelledby="t-arcade" hidden>
+      <div class="cgrid">
+        <div class="cmain">
+          <div class="box nextev">
+            <span class="eyebrow">Seis tramos seguidos · contra la cuenta atrás</span>
+            <h3>Recreativa</h3>
+            <p class="muted">Sales con unos segundos en el marcador. Cada control te da más tiempo y lo que te sobra en meta pasa al tramo siguiente y suma puntos. Derrapar sobre la pista también puntúa, pero un golpe o una salida de pista te hacen perder el derrape. Si se acaba el tiempo, puedes continuar <span id="a-cont">3</span> veces.</p>
+            <div class="fld">Coche
+              <div class="seg" role="group" aria-label="Coche para la recreativa" id="a-models"></div>
+            </div>
+            <div class="row"><button type="button" class="btn" id="a-go">Empezar partida</button></div>
+          </div>
+          <div class="box">
+            <h4>Tramos</h4>
+            <ol class="cal" id="a-stages"></ol>
+          </div>
+        </div>
+        <div class="cside">
+          <div class="box">
+            <h4>Mejores puntuaciones</h4>
+            <table class="res stand"><tbody id="a-scores"></tbody></table>
           </div>
         </div>
       </div>
@@ -217,8 +244,12 @@
   <section class="about">
     <span class="eyebrow">La propuesta</span>
     <h2>Rally de recreativa con el caos del off-road</h2>
-    <p>La cámara sigue a tu coche desde arriba por circuitos más grandes que la pantalla, como en los rallies de recreativa. Del off-road clásico vienen los saltos, el nitro, los empujones y los circuitos cerrados con cuatro coches.</p>
+    <p>La cámara sigue a tu coche en perspectiva isométrica por circuitos más grandes que la pantalla, como en los rallies de recreativa: árboles, rocas, pacas, rampas y puentes tienen volumen, y los árboles que te tapan se vuelven transparentes. La conducción es arcade: con gas y volante a fondo la trasera se suelta, y al contravolantear el coche se endereza enseguida. Del off-road clásico vienen los saltos, el nitro, los empujones y los circuitos cerrados con cuatro coches.</p>
     <div class="cols">
+      <div class="sheet">
+        <h3>Recreativa</h3>
+        <p>Seis tramos encadenados contra la cuenta atrás. Los controles dan segundos, el tiempo que sobra pasa al siguiente tramo, y los derrapes suman puntos. Si se acaba el tiempo, puedes continuar; al final, tus iniciales en la tabla.</p>
+      </div>
       <div class="sheet">
         <h3>Rally</h3>
         <p>Solo contra el reloj. El copiloto canta en voz alta la curva que viene, los parciales salen en verde o rojo frente a tu mejor tiempo y un fantasma repite tu mejor pasada.</p>
@@ -239,7 +270,7 @@
     </div>
 
     <h2>El coche</h2>
-    <p>Un compacto de rally con tracción total visto desde arriba: aletas ensanchadas sobre ruedas anchas, alerón trasero, toma de aire en el techo, rejillas en el capó, faldillas y, en algunas decoraciones, una rampa de faros auxiliares. Se ensucia mientras corres: barro marrón en los charcos, polvo en la tierra y nieve en la montaña. Elige tu decoración:</p>
+    <p>Un compacto de rally con tracción total: aletas ensanchadas sobre ruedas anchas, alerón trasero, toma de aire en el techo, rejillas en el capó, faldillas y, en algunas decoraciones, una rampa de faros auxiliares. Se ensucia mientras corres: barro marrón en los charcos, polvo en la tierra y nieve en la montaña. Elige tu decoración:</p>
     <div class="garage" id="garage" role="group" aria-label="Decoraciones del coche"></div>
 
     <div class="tbl">
@@ -262,7 +293,12 @@
         <ul><li>Campeonato de seis pruebas con puntos y premios</li><li>Tres coches distintos y cinco mejoras</li><li>Daños que se pagan en el taller</li><li>Lluvia, noche y tormentas</li><li>Puentes en los cruces del trazado</li><li>Música sintetizada</li></ul>
       </div>
       <div class="sheet">
-        <span class="when">Fase 3</span>
+        <span class="when">Fase 3 · hecho</span>
+        <h3>Recreativa</h3>
+        <ul><li>Vista isométrica con objetos en volumen</li><li>Conducción arcade con derrape de potencia</li><li>Seis tramos contra la cuenta atrás</li><li>Puntos por derrape, continuaciones y tabla de récords</li></ul>
+      </div>
+      <div class="sheet">
+        <span class="when">Fase 4</span>
         <h3>Compartir y competir</h3>
         <ul><li>Circuitos compartidos por enlace</li><li>Pantalla partida con mandos</li><li>Tablas de récords por circuito</li><li>Instalable en el móvil sin conexión</li></ul>
       </div>

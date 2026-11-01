@@ -1,6 +1,6 @@
 # Polvo y Barro
 
-Juego de rally y off-road en 2D con vista cenital, para jugar en el navegador. Mezcla dos estilos de recreativa: el rally con cámara que sigue al coche, y el off-road de circuito cerrado con cuatro coches, saltos y nitro. Incluye un editor de circuitos.
+Juego de rally y off-road en vista isométrica, para jugar en el navegador. Mezcla dos estilos de recreativa: el rally contra la cuenta atrás con cámara que sigue al coche, y el off-road de circuito cerrado con cuatro coches, saltos y nitro. Incluye un campeonato y un editor de circuitos.
 
 Está hecho con HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 
@@ -33,6 +33,7 @@ Para publicarlo con GitHub Pages: en **Settings → Pages**, elige *Deploy from 
 
 ### Modos
 
+- **Recreativa** (pestaña propia): seis tramos encadenados contra la cuenta atrás. Sales con los segundos justos para llegar al primer control, y cada control te da los del siguiente. El tiempo que sobra en meta pasa al tramo siguiente y suma 100 puntos por segundo. Cada control da 250 puntos, y los derrapes sobre la pista suman según lo cruzado que vayas, con un multiplicador que sube hasta ×5 si encadenas el derrape. Un golpe o una salida de pista te hacen perder el derrape en curso. Si se acaba el tiempo tienes 9 segundos para continuar (tres veces por partida); al continuar repites el tramo con los puntos que traías. Las diez mejores puntuaciones se guardan con tus iniciales.
 - **Rally**: tú solo contra el reloj. El copiloto canta la próxima curva (grado 1 = muy cerrada … 6 = casi recta, H = horquilla). Ves los parciales frente a tu récord y un fantasma repite tu mejor pasada.
 - **Carrera**: tú contra tres rivales controlados por la IA.
 
@@ -74,9 +75,15 @@ Todo el audio se genera en el navegador con Web Audio, sin archivos:
 
 `M` silencia el sonido. Los botones *Sonido* y *Copiloto* recuerdan la elección.
 
+### Vista y conducción
+
+El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pacas, conos, latas, farolas, rampas, arcos de salida, control y meta, y puentes tienen volumen y se ordenan por profundidad con los coches. Los árboles que tapan tu coche se vuelven transparentes. La física sigue siendo 2D; solo cambia cómo se dibuja.
+
+La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia), el coche gira más mientras va cruzado y apenas pierde velocidad. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `keep`, `yaw`) dentro de `js/config.js`.
+
 ### Coches
 
-Cada coche es un compacto de rally visto desde arriba, con aletas ensanchadas, alerón, toma de aire en el techo, rejillas en el capó, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay cinco decoraciones para elegir. Se dibujan una vez en alta resolución y se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
+Cada coche es un compacto de rally, con aletas ensanchadas, alerón, toma de aire en el techo, rejillas en el capó, faldillas, dorsal en el techo y, según la decoración, faros auxiliares. Hay cinco decoraciones para elegir. Se dibujan una vez en alta resolución vistos desde arriba y, en el juego, se montan por capas a distintas alturas (ruedas, laterales, capó, cabina acristalada y techo) para verlos en tres cuartos. Se ensucian con barro, polvo o nieve según la superficie. Las decoraciones se definen en `LIVERIES`, dentro de `js/car.js`.
 
 ## Editor de circuitos
 
@@ -107,10 +114,11 @@ El mundo mide 2400 × 1500 px. `type` es `circuito` o `tramo`. `s` puede ser `as
 index.html          página y controles
 css/style.css       estilos y paletas (azul y naranja, bosque, noche)
 js/config.js        superficies, entornos, objetos y física (ajusta aquí el manejo)
-js/tracks.js        circuitos incluidos
+js/tracks.js        circuitos incluidos, temporada y tramos de la recreativa
 js/track.js         geometría del trazado, notas del copiloto y dibujo de la pista
-js/car.js           coche de rally: sprite, decoraciones y suciedad
-js/game.js          simulación, IA, daños, lluvia, noche, puentes y HUD
+js/car.js           coche de rally: sprite, decoraciones, suciedad y montaje por capas en isométrico
+js/iso.js           objetos del escenario en isométrico: árboles, rocas, rampas, arcos, puentes…
+js/game.js          simulación, IA, daños, lluvia, noche, puentes, recreativa y HUD
 js/career.js        campeonato: dinero, garaje, mejoras y puntos
 js/audio.js         sonido sintetizado, música y voz del copiloto
 js/editor.js        editor de circuitos
@@ -124,5 +132,6 @@ Para depurar desde la consola del navegador: `__pyb.game.cars`, `__pyb.game.trac
 
 - El trazado es una curva Catmull-Rom que pasa por los puntos y se muestrea cada 8 px. Cada muestra guarda la posición, la normal, el ancho, la superficie y cuánto gira la pista en los siguientes ~100 px. De ahí salen las notas del copiloto y la velocidad de paso de la IA.
 - La física funciona a paso fijo de 1/120 s. Cada superficie tiene su agarre lateral, su velocidad punta y su aceleración. El freno de mano reduce el agarre para derrapar.
-- La pista se dibuja una sola vez en dos capas de 2400 × 1500: el suelo, y por encima las copas de los árboles. En cada fotograma solo se copia la parte visible.
+- El suelo de la pista (firme, arcén, manchas, sombras) se dibuja una sola vez en un canvas de 2400 × 1500 visto desde arriba, y en cada fotograma se copia la parte visible con la transformación isométrica. Lo que tiene altura se dibuja aparte, ordenado por `x + y`.
+- En la recreativa, el tiempo que da cada control sale de simular a un piloto de referencia con tu coche por el mismo tramo y multiplicarlo por un margen (`slack` en `ARCADE_STAGES`) que se reduce en cada tramo.
 - Los récords, los fantasmas y los circuitos guardados se quedan en el `localStorage` del navegador.

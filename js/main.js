@@ -1,7 +1,7 @@
-// Arranque: pestañas, paletas, juego libre, campeonato, editor, controles y bucle principal.
+// Arranque: pestañas, paletas, juego libre, recreativa, campeonato, editor, controles y bucle principal.
 import { store, fmtTime, esc } from './util.js';
-import { SURF, THEME, CAR_MODELS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, carSpec } from './config.js';
-import { BUILTIN_RAW, SEASON } from './tracks.js';
+import { SURF, THEME, CAR_MODELS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, carSpec } from './config.js';
+import { BUILTIN_RAW, SEASON, ARCADE_STAGES } from './tracks.js';
 import { resolveDef, normalizeDef } from './track.js';
 import { createGame, RIVALS } from './game.js';
 import { createEditor } from './editor.js';
@@ -21,6 +21,9 @@ if (!LIVERIES[carId]) carId = 'paleta';
 let quickModel = CAR_MODELS[store.get('pyb-model', 'compacto')] ? store.get('pyb-model', 'compacto') : 'compacto';
 let quickCond = CONDITIONS[store.get('pyb-cond', 'seco')] ? store.get('pyb-cond', 'seco') : 'seco';
 let inEvent = null;          // prueba del campeonato en curso
+let arcRun = null;           // partida de recreativa en curso: { stage, score, carry, continues }
+let arcModel = CAR_MODELS[store.get('pyb-amodel', 'compacto')] ? store.get('pyb-amodel', 'compacto') : 'compacto';
+let contTimer = null;
 const career = createCareer();
 function playerLivery() { const L = LIVERIES[carId]; return { ...L, base: L.base || carColor }; }
 
@@ -71,6 +74,13 @@ const game = createGame($('cv'), {
 
 function idleCard(i) {
   if (!i) return '<div class="card"><h3>Trazado incompleto</h3><p>Vuelve al editor y añade más puntos.</p></div>';
+  if (i.arcade) {
+    const a = i.arcade;
+    const meta = [i.loop ? `${i.laps} ${i.laps > 1 ? 'vueltas' : 'vuelta'}` : 'Tramo de salida a meta', `${Math.round(i.lengthM)} m`, i.condLabel].join(' · ');
+    return `<div class="card"><span class="eyebrow">Recreativa · tramo ${a.stage + 1} de ${a.total}</span><h3>${esc(i.name)}</h3><p>${meta}</p>
+      <p class="muted">Sales con <b>${Math.ceil(a.start)} s</b>. Puntos: <b>${a.score}</b> · Continuaciones: <b>${arcRun ? arcRun.continues : 0}</b></p>
+      <button class="btn" id="o-go" data-enter>Empezar</button></div>`;
+  }
   const ev = i.event;
   const modeTxt = (ev ? `Prueba ${ev.idx + 1} de ${ev.total} · ` : '') + (mode === 'rally' ? 'Rally · contra el reloj' : 'Carrera · 4 coches');
   const meta = [
@@ -86,7 +96,7 @@ function idleCard(i) {
     extra = `<p class="muted">Récord con este coche: <b>${i.best != null ? fmtTime(i.best) : 'sin tiempo'}</b>${i.best != null ? ' · correrás contra tu fantasma' : ''}</p>`;
   } else extra = '<p class="muted">Coge las latas de nitro, usa los saltos y no te dejes empujar.</p>';
   if (ev) extra += `<p class="muted">Daños al salir: <b>${Math.round(career.car().dmg * 100)}%</b> · Puntos: ${POINTS.join(' / ')}</p>`;
-  return `<div class="card"><span class="eyebrow">${modeTxt}</span><h3>${esc(i.name)}</h3><p>${meta}</p>${extra}<button class="btn" id="o-go">Empezar</button></div>`;
+  return `<div class="card"><span class="eyebrow">${modeTxt}</span><h3>${esc(i.name)}</h3><p>${meta}</p>${extra}<button class="btn" id="o-go" data-enter>Empezar</button></div>`;
 }
 function showIdle(i) {
   ovl.innerHTML = idleCard(i);
@@ -116,6 +126,7 @@ function rallyTable(r) {
 }
 
 function showResults(r) {
+  if (r.mode === 'arcade') { arcadeResults(r); return; }
   const me = r.rows.find((x) => x.me);
   let body, buttons;
   if (inEvent) {
@@ -126,7 +137,7 @@ function showResults(r) {
       <div class="tscroll"><table class="res"><tbody>${rows}</tbody></table></div>
       <p class="muted">Premio: <b>$${out.prize}</b> · Daños del coche: <b>${Math.round(out.dmg * 100)}%</b></p>
       ${out.champion ? `<p><b>${out.champion === 'Tú' ? `¡Campeón de la temporada! Bonus de $${out.bonus}.` : `${esc(out.champion)} gana la temporada.`}</b></p>` : ''}`;
-    buttons = '<button class="btn" id="o-champ">Volver al campeonato</button>';
+    buttons = '<button class="btn" id="o-champ" data-enter>Volver al campeonato</button>';
     renderChamp();
   } else {
     const rows = r.rows.map((x) => `<tr class="${x.me ? 'me' : ''}"><td>${x.pos}</td><td><i class="dot" style="background:${x.color}"></i>${esc(x.name)}</td><td>${x.time != null ? fmtTime(x.time) : 'en pista'}</td></tr>`).join('');
@@ -141,7 +152,7 @@ function showResults(r) {
       body = `<span class="eyebrow">${esc(r.track)}</span><h3>${me.pos === 1 ? '¡Victoria!' : me.pos + 'º puesto'}</h3>
         <div class="tscroll"><table class="res"><tbody>${rows}</tbody></table></div>`;
     }
-    buttons = '<button class="btn" id="o-again">Repetir</button><button class="btn ghost" id="o-menu">Elegir otro</button>';
+    buttons = '<button class="btn" id="o-again" data-enter>Repetir</button><button class="btn ghost" id="o-menu">Elegir otro</button>';
   }
   ovl.innerHTML = `<div class="card">${body}<div class="row">${buttons}</div></div>`;
   ovl.hidden = false;
@@ -174,7 +185,7 @@ function setModeUI(m) {
 }
 $('p-track').addEventListener('change', loadSelected);
 document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { setModeUI(b.dataset.mode); loadSelected(); }));
-$('p-restart').addEventListener('click', start);
+$('p-restart').addEventListener('click', () => { if (!arcRun) start(); });
 
 Object.entries(CAR_MODELS).forEach(([id, M]) => $('p-model').add(new Option(M.label, id)));
 $('p-model').value = quickModel;
@@ -183,10 +194,137 @@ Object.entries(CONDITIONS).forEach(([id, C]) => $('p-cond').add(new Option(C.lab
 $('p-cond').value = quickCond;
 $('p-cond').addEventListener('change', () => { quickCond = $('p-cond').value; store.set('pyb-cond', quickCond); loadSelected(); });
 
+// ---------- Recreativa ----------
+const ARC_KEY = 'pyb-arcade-v1';
+function arcScores() { const v = store.get(ARC_KEY, []); return Array.isArray(v) ? v : []; }
+const qualifies = (score) => score > 0 && (arcScores().length < 10 || score > arcScores()[9].s);
+
+function renderArcade() {
+  $('a-cont').textContent = ARCADE.continues;
+  $('a-models').innerHTML = Object.entries(CAR_MODELS).map(([id, M]) => `<button type="button" data-amodel="${id}" aria-pressed="${id === arcModel}">${M.label}</button>`).join('');
+  $('a-models').querySelectorAll('[data-amodel]').forEach((b) => b.addEventListener('click', () => {
+    arcModel = b.dataset.amodel; store.set('pyb-amodel', arcModel); renderArcade();
+  }));
+  $('a-stages').innerHTML = ARCADE_STAGES.map((e) => {
+    const d = builtinByName(e.track);
+    return `<li><span>${esc(e.track)}<small>${d.type === 'tramo' ? 'Tramo' : e.laps + ' vueltas'} · ${CONDITIONS[e.cond].label}</small></span></li>`;
+  }).join('');
+  const sc = arcScores();
+  $('a-scores').innerHTML = sc.length
+    ? sc.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.n)}</td><td>${x.st >= ARCADE_STAGES.length ? 'completo' : 'tramo ' + (x.st + 1)}</td><td>${x.s.toLocaleString('es-ES')}</td></tr>`).join('')
+    : '<tr><td class="muted">Todavía no hay puntuaciones.</td></tr>';
+}
+$('a-go').addEventListener('click', () => {
+  if (inEvent) leaveEvent(false);
+  arcRun = { stage: 0, score: 0, carry: 0, continues: ARCADE.continues };
+  audio.sfx('coin');
+  enterArcadeStage();
+});
+
+function enterArcadeStage() {
+  const st = ARCADE_STAGES[arcRun.stage];
+  const def = { ...builtinByName(st.track), laps: st.laps };
+  showTab('play');
+  $('p-event').hidden = false;
+  $('p-event-k').textContent = `Recreativa · tramo ${arcRun.stage + 1} de ${ARCADE_STAGES.length}`;
+  $('p-event-t').textContent = `${st.track} · ${CONDITIONS[st.cond].label}`;
+  $('p-event-back').textContent = 'Dejar la partida';
+  document.querySelector('.setup').classList.add('locked');
+  drawCarUI();
+  showIdle(game.setup({
+    def, mode: 'arcade', cond: st.cond, field: false, event: null, rivals: null,
+    me: { model: arcModel, spec: carSpec(arcModel), dmg: 0 },
+    arcade: { stage: arcRun.stage, total: ARCADE_STAGES.length, score: arcRun.score, carry: arcRun.carry, slack: st.slack },
+  }));
+}
+function leaveArcade(toTab) {
+  clearInterval(contTimer);
+  arcRun = null;
+  $('p-event').hidden = true;
+  $('p-event-back').textContent = 'Volver al campeonato';
+  document.querySelector('.setup').classList.remove('locked');
+  drawCarUI();
+  if (toTab) showTab('arcade');
+  loadSelected();
+}
+
+function card(body, buttons) {
+  ovl.innerHTML = `<div class="card">${body}<div class="row">${buttons}</div></div>`;
+  ovl.hidden = false;
+}
+
+function arcadeResults(r) {
+  if (!arcRun) return;
+  clearInterval(contTimer);
+  if (!r.timeout) {
+    arcRun.score = r.score; arcRun.carry = r.left * ARCADE.carry; arcRun.stage++;
+    const last = arcRun.stage >= ARCADE_STAGES.length;
+    card(`<span class="eyebrow">Tramo ${r.stage + 1} de ${r.total} · superado</span><h3 class="time">${fmtTime(r.time)}</h3>
+      <div class="tscroll"><table class="res"><tbody>
+        <tr><td>Tiempo sobrante</td><td>${r.left.toFixed(1)} s</td></tr>
+        <tr><td>Bonus de meta</td><td>+${r.bonus}</td></tr>
+        <tr><td>Puntos en el tramo</td><td>+${r.gained}</td></tr>
+        <tr class="me"><td>Total</td><td>${r.score.toLocaleString('es-ES')}</td></tr>
+      </tbody></table></div>
+      ${last ? '' : `<p class="muted">Los ${r.left.toFixed(1)} s que sobran se suman al siguiente tramo.</p>`}`,
+      last ? '<button class="btn" id="o-next" data-enter>Ver la puntuación final</button>' : '<button class="btn" id="o-next" data-enter>Siguiente tramo</button>');
+    $('o-next').addEventListener('click', () => {
+      if (!last) { enterArcadeStage(); return; }
+      const extra = arcRun.continues * 2000;
+      arcRun.score += extra;
+      gameOver(true, extra);
+    });
+    return;
+  }
+  if (arcRun.continues <= 0) { gameOver(false, 0); return; }
+  let n = ARCADE.countdown;
+  card(`<span class="eyebrow">Tramo ${r.stage + 1} de ${r.total}</span><h3>Sin tiempo</h3>
+    <p class="muted">¿Continuar? Repites este tramo con los puntos que traías (${arcRun.score.toLocaleString('es-ES')}). Te quedan <b>${arcRun.continues}</b> continuaciones.</p>
+    <p class="cont-n" id="o-n">${n}</p>`,
+    '<button class="btn" id="o-cont" data-enter>Continuar</button><button class="btn ghost" id="o-end">Terminar</button>');
+  contTimer = setInterval(() => {
+    n--;
+    if ($('o-n')) $('o-n').textContent = n;
+    if (n <= 0) { clearInterval(contTimer); gameOver(false, 0); } else audio.sfx('tick');
+  }, 1000);
+  $('o-cont').addEventListener('click', () => { clearInterval(contTimer); arcRun.continues--; arcRun.carry = 0; audio.sfx('coin'); enterArcadeStage(); });
+  $('o-end').addEventListener('click', () => { clearInterval(contTimer); gameOver(false, 0); });
+}
+
+function gameOver(complete, extra) {
+  const run = arcRun, score = run.score;
+  const head = `<span class="eyebrow">${complete ? 'Recorrido completo' : 'Fin de la partida'}</span>
+    <h3 class="time">${score.toLocaleString('es-ES')}</h3>
+    <p class="muted">${complete ? `Has terminado los ${ARCADE_STAGES.length} tramos.${extra ? ` Bonus por continuaciones sin usar: +${extra}.` : ''}` : `Llegaste al tramo ${run.stage + 1} de ${ARCADE_STAGES.length}.`}</p>`;
+  const finish = () => {
+    card(head, '<button class="btn" id="o-again" data-enter>Jugar otra vez</button><button class="btn ghost" id="o-out">Salir</button>');
+    $('o-again').addEventListener('click', () => { arcRun = { stage: 0, score: 0, carry: 0, continues: ARCADE.continues }; audio.sfx('coin'); enterArcadeStage(); });
+    $('o-out').addEventListener('click', () => leaveArcade(true));
+  };
+  if (!qualifies(score)) { finish(); return; }
+  card(`${head}<form id="o-form" class="initials"><label class="fld">Tus iniciales<input id="o-ini" maxlength="3" autocomplete="off" spellcheck="false" required></label>
+    <button class="btn" type="submit">Guardar</button></form>`, '');
+  const inp = $('o-ini');
+  inp.value = store.get('pyb-ini', '');
+  inp.focus(); inp.select();
+  $('o-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = (inp.value.toUpperCase().replace(/[^A-ZÑ0-9]/g, '') || '???').slice(0, 3);
+    store.set('pyb-ini', name);
+    const list = arcScores();
+    list.push({ n: name, s: score, st: complete ? ARCADE_STAGES.length : run.stage, m: arcModel });
+    list.sort((a, b) => b.s - a.s);
+    store.set(ARC_KEY, list.slice(0, 10));
+    audio.sfx('record');
+    finish();
+  });
+}
+
 // ---------- Campeonato ----------
 function enterEvent() {
   const ev = career.event();
   if (!ev) return;
+  if (arcRun) leaveArcade(false);
   const def = builtinByName(ev.track);
   inEvent = ev;
   setModeUI(ev.mode);
@@ -211,7 +349,7 @@ function leaveEvent(toChamp) {
   if (toChamp) showTab('champ');
   loadSelected();
 }
-$('p-event-back').addEventListener('click', () => leaveEvent(true));
+$('p-event-back').addEventListener('click', () => (arcRun ? leaveArcade(true) : leaveEvent(true)));
 
 let resetArmed = false;
 function chHint(msg) { $('c-hint').textContent = msg; }
@@ -264,7 +402,7 @@ function renderChamp() {
   }).join('');
   $('c-models').querySelectorAll('.model').forEach((b) => {
     const id = b.dataset.model;
-    drawCarPreview(b.querySelector('canvas'), playerLivery(), '1', 0, id);
+    drawCarPreview(b.querySelector('canvas'), playerLivery(), '1', id);
     b.addEventListener('click', () => {
       if (career.owned(id)) { career.selectCar(id); chHint(`Ahora corres con el ${CAR_MODELS[id].label}. ${CAR_MODELS[id].desc}`); }
       else if (career.buyCar(id)) { chHint(`Has comprado el ${CAR_MODELS[id].label}. ${CAR_MODELS[id].desc}`); audio.sfx('pickup'); }
@@ -308,7 +446,10 @@ const KMAP = { ArrowUp: 't', KeyW: 't', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l
 const typing = (e) => /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '');
 window.addEventListener('keydown', (e) => {
   if ($('pane-play').hidden || typing(e)) return;
-  if (e.code === 'Enter' && game.state === 'idle' && !ovl.hidden && $('o-go')) { e.preventDefault(); start(); return; }
+  if (e.code === 'Enter' && !ovl.hidden) {
+    const b = ovl.querySelector('[data-enter]');
+    if (b) { e.preventDefault(); b.click(); return; }
+  }
   if (e.code === 'KeyF') { toggleFull(); return; }
   if (e.code === 'Escape' && isFull() && !document.fullscreenElement && !document.webkitFullscreenElement) { exitFull(); return; }
   if (e.code === 'KeyM') { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); return; }
@@ -350,12 +491,12 @@ Object.entries(LIVERIES).forEach(([id, L]) => {
 });
 function drawCarUI() {
   if (!garage) return;
-  const m = inEvent ? career.carId : quickModel;
-  drawCarPreview($('p-car-prev'), playerLivery(), '1', 0, m);
+  const m = arcRun ? arcModel : inEvent ? career.carId : quickModel;
+  drawCarPreview($('p-car-prev'), playerLivery(), '1', m);
   garage.querySelectorAll('.gcar').forEach((b) => {
     const L = LIVERIES[b.dataset.car];
     b.setAttribute('aria-pressed', b.dataset.car === carId);
-    drawCarPreview(b.querySelector('canvas'), { ...L, base: L.base || carColor }, '1', -Math.PI / 2, m);
+    drawCarPreview(b.querySelector('canvas'), { ...L, base: L.base || carColor }, '1', m);
   });
 }
 
@@ -365,6 +506,7 @@ const editor = createEditor($('ecv'), {
   visible: () => !$('pane-edit').hidden,
   test(def) {
     if (inEvent) leaveEvent(false);
+    if (arcRun) leaveArcade(false);
     testDef = normalizeDef(def);
     refreshTrackSelect('editor');
     $('p-track').value = 'editor';
@@ -419,15 +561,17 @@ $('fs').addEventListener('click', (e) => { e.currentTarget.blur(); toggleFull();
 // ---------- Pestañas ----------
 function showTab(t) {
   if (t !== 'play' && isFull()) exitFull();
-  for (const p of ['play', 'champ', 'edit']) {
+  for (const p of ['play', 'arcade', 'champ', 'edit']) {
     $('pane-' + p).hidden = t !== p;
     $('t-' + p).setAttribute('aria-selected', t === p);
   }
   for (const k in game.keys) game.keys[k] = 0;
   if (t === 'champ') renderChamp();
+  if (t === 'arcade') renderArcade();
   requestAnimationFrame(() => { game.resize(); editor.resize(); editor.refresh(); });
 }
 $('t-play').addEventListener('click', () => showTab('play'));
+$('t-arcade').addEventListener('click', () => showTab('arcade'));
 $('t-champ').addEventListener('click', () => showTab('champ'));
 $('t-edit').addEventListener('click', () => showTab('edit'));
 

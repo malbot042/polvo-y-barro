@@ -238,6 +238,11 @@ export function createAudio() {
         burst(2.2, 'lowpass', 120, 0.6, w + 0.4, 0.8);
         break;
       }
+      case 'extend': [880, 1175, 1568].forEach((f, i) => tone(f, 0.12, 'square', 0.12, i * 0.07)); break;
+      case 'tick': tone(1480, 0.06, 'square', 0.13); break;
+      case 'timeup': [523, 415, 330, 262].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.18, 'sawtooth', 0.14, i * 0.2)); break;
+      case 'combo': tone(1319, 0.07, 'triangle', 0.2); tone(1976, 0.16, 'triangle', 0.2, 0.06); break;
+      case 'coin': tone(988, 0.08, 'square', 0.16); tone(1319, 0.3, 'square', 0.16, 0.08); break;
       case 'note': speak(noteText(d.no) + (d.next ? ' y ' + noteText(d.next) : '')); break;
     }
   }

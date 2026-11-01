@@ -215,6 +215,11 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 }
 .card h3.time { font-size: clamp(34px, 7vw, 52px); font-variant-numeric: tabular-nums; }
 .card p { margin: 0; }
+/* Recreativa: cuenta atrás para continuar e iniciales */
+.cont-n { font-family: var(--f-display); font-style: italic; font-weight: 800; font-stretch: 72%; font-size: 64px; line-height: 1; color: var(--accent); text-align: center; font-variant-numeric: tabular-nums; }
+.initials { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.initials input { width: 5.5em; font: italic 800 24px var(--f-display); text-transform: uppercase; letter-spacing: .12em; }
+#a-models { flex-wrap: wrap; }
 .tscroll { overflow-x: auto; }
 .res { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
 .res td { padding: 5px 8px; border-bottom: 1px solid var(--line); }

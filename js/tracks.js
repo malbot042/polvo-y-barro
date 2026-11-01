@@ -77,3 +77,14 @@ export const SEASON = [
   { track: 'Ocho de la Fábrica', mode: 'carrera', cond: 'noche' },
   { track: 'Circuito del Embalse', mode: 'carrera', cond: 'lluvia-noche' },
 ];
+
+// Recreativa: tramos encadenados, más cortos (como mucho dos vueltas) y con menos margen
+// de tiempo en cada uno (slack: tiempo que da cada control frente a un piloto de referencia)
+export const ARCADE_STAGES = [
+  { track: 'Circuito del Pinar', laps: 2, cond: 'seco', slack: 1.45 },
+  { track: 'Tramo Puerto Blanco', laps: 1, cond: 'seco', slack: 1.38 },
+  { track: 'Dunas Rojas', laps: 2, cond: 'seco', slack: 1.32 },
+  { track: 'Bosque de Lluvia', laps: 1, cond: 'lluvia', slack: 1.28 },
+  { track: 'Ocho de la Fábrica', laps: 2, cond: 'noche', slack: 1.24 },
+  { track: 'Circuito del Embalse', laps: 2, cond: 'lluvia-noche', slack: 1.2 },
+];
