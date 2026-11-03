@@ -37,7 +37,7 @@ function fillCarSelect(sel, value) {
   sel.replaceChildren();
   for (const [era, ids] of carsByEra()) {
     const g = document.createElement('optgroup'); g.label = ERAS[era];
-    for (const id of ids) g.append(new Option(`${CAR_MODELS[id].label} (${CAR_MODELS[id].year})`, id));
+    for (const id of ids) g.append(new Option(`${CAR_MODELS[id].label} (${CAR_MODELS[id].year}) · ${CAR_MODELS[id].top} km/h`, id));
     sel.append(g);
   }
   sel.value = value;
@@ -230,7 +230,7 @@ const qualifies = (score) => score > 0 && (arcScores().length < 10 || score > ar
 function renderArcade() {
   $('a-cont').textContent = ARCADE.continues;
   fillCarSelect($('a-model'), arcModel);
-  $('a-desc').textContent = CAR_MODELS[arcModel].desc;
+  $('a-desc').textContent = `${CAR_MODELS[arcModel].desc} Punta: ${CAR_MODELS[arcModel].top} km/h.`;
   $('a-stages').innerHTML = ARCADE_STAGES.map((e) => {
     const d = builtinByName(e.track);
     return `<li><span>${esc(e.track)}<small>${d.type === 'tramo' ? 'Tramo' : e.laps + ' vueltas'} · ${CONDITIONS[e.cond].label}</small></span></li>`;
@@ -422,8 +422,8 @@ function renderChamp() {
   $('c-models').innerHTML = carsByEra().map(([era, ids]) => `<h5 class="era">${ERAS[era]}</h5>` + ids.map((id) => {
     const M = CAR_MODELS[id], own = career.owned(id), sel = career.carId === id, sp = carSpec(id);
     return `<button type="button" class="model" data-model="${id}" aria-pressed="${sel}">
-      <canvas aria-hidden="true"></canvas><b>${M.label}</b><small class="muted">${M.year}</small>
-      ${statBar('Punta', (sp.max - 0.8) / 0.35)}${statBar('Agarre', (sp.grip - 0.75) / 0.4)}${statBar('Fuera pista', (sp.off - 0.7) / 0.9)}${statBar('Resistencia', (sp.armor - 0.7) / 0.9)}
+      <canvas aria-hidden="true"></canvas><b>${M.label}</b><small class="muted">${M.year} · ${sp.top} km/h</small>
+      ${statBar('Punta', (sp.top - 170) / 50)}${statBar('Agarre', (sp.grip - 0.75) / 0.4)}${statBar('Fuera pista', (sp.off - 0.7) / 0.9)}${statBar('Resistencia', (sp.armor - 0.7) / 0.9)}
       <span class="price">${sel ? 'En uso' : own ? 'Tuyo · usar' : '$' + M.price.toLocaleString('es-ES')}</span></button>`;
   }).join('')).join('');
   $('c-models').querySelectorAll('.model').forEach((b) => {
