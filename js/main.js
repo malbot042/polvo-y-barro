@@ -189,17 +189,6 @@ function syncCRT() {
 $('crt').addEventListener('click', () => { crt = !crt; store.set('pyb-crt', crt); syncCRT(); });
 syncCRT();
 
-// Cambio automático o manual (E/X sube, Q/Z baja; en táctil, botones + y −)
-let autoBox = store.get('pyb-gearbox', 'auto') !== 'manual';
-function syncBox() {
-  $('box-auto').setAttribute('aria-pressed', autoBox); $('box-man').setAttribute('aria-pressed', !autoBox);
-  $('p-gup').hidden = $('p-gdn').hidden = autoBox;
-  game.setGearbox(autoBox);
-}
-$('box-auto').addEventListener('click', () => { autoBox = true; store.set('pyb-gearbox', 'auto'); syncBox(); });
-$('box-man').addEventListener('click', () => { autoBox = false; store.set('pyb-gearbox', 'manual'); syncBox(); });
-syncBox();
-
 // ---------- Juego libre ----------
 function quickSetup(def) {
   return game.setup({
@@ -490,16 +479,12 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyF') { toggleFull(); return; }
   if (e.code === 'Escape' && isFull() && !document.fullscreenElement && !document.webkitFullscreenElement) { exitFull(); return; }
-  const sh = { KeyE: 1, KeyX: 1, KeyQ: -1, KeyZ: -1 }[e.code];
-  if (sh && !e.repeat) { game.shift(sh); return; }
   if (e.code === 'KeyM') { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); return; }
   const k = KMAP[e.code]; if (!k) return;
   e.preventDefault(); game.keys[k] = 1;
 });
 window.addEventListener('keyup', (e) => { const k = KMAP[e.code]; if (k) game.keys[k] = 0; });
 window.addEventListener('blur', () => { for (const k in game.keys) game.keys[k] = 0; });
-$('p-gup').addEventListener('pointerdown', (e) => { e.preventDefault(); game.shift(1); });
-$('p-gdn').addEventListener('pointerdown', (e) => { e.preventDefault(); game.shift(-1); });
 document.querySelectorAll('.pad[data-k]').forEach((b) => {
   const k = b.dataset.k;
   const on = (e) => { e.preventDefault(); game.keys[k] = 1; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };

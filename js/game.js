@@ -59,7 +59,6 @@ export function createGame(cv, hooks) {
   const ghostCv = document.createElement('canvas'), gctx = ghostCv.getContext('2d');
   // efecto de monitor: patrón de barras y viñeta, rehechos solo al cambiar de tamaño o de densidad de píxeles
   let crtOn = true, crtPat = null, crtKey = '';
-  let autoBox = true;   // cambio automático (o manual) para el jugador
   const vig = document.createElement('canvas');
   const cam = { x: WW / 2, y: WH / 2 };
   let dpr = 1;
@@ -332,11 +331,11 @@ export function createGame(cv, hooks) {
       let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
       if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
       if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') { gripS *= COND.grip; accS *= COND.acc; maxS *= COND.max; }
-      // caja de cinco marchas: la IA y el automático cambian solos; en manual cambia el jugador.
+      // caja de cinco marchas automática para todos.
       // Las vueltas salen de la velocidad y la marcha; el empuje, de la curva de par.
       const top = PHYS.max * c.skill * spec.max, G = PHYS.gears;
       if (c.shiftT > 0) c.shiftT -= dt;
-      else if (!c.me || autoBox) {
+      else {
         if (c.gear < G.length && fs > G[c.gear - 1] * top * PHYS.autoUp && inp.t) shiftTo(c, c.gear + 1);
         else if (c.gear > 1 && fs < G[c.gear - 2] * top * PHYS.autoDown) shiftTo(c, c.gear - 1);
       }
@@ -762,18 +761,14 @@ export function createGame(cv, hooks) {
     ctx.beginPath(); ctx.moveTo(cx - Math.cos(na) * 8 * u, cy - Math.sin(na) * 8 * u); ctx.lineTo(cx + Math.cos(na) * nl, cy + Math.sin(na) * nl); ctx.stroke();
     ctx.fillStyle = '#2a3138'; ctx.beginPath(); ctx.arc(cx, cy, 5 * u, 0, 7); ctx.fill();
     ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 1.4 * u; ctx.stroke();
-    // marcha, a la izquierda; en manual parpadea en rojo al llegar al corte
-    const gw = 40 * u, gh = 52 * u, gx = cx - R - gw - 6 * u, gy = cy + R - gh;
+    // marcha, a la izquierda
+    const gw = 40 * u, gh = 46 * u, gx = cx - R - gw - 6 * u, gy = cy + R - gh;
     ctx.fillStyle = 'rgba(10,16,22,.78)'; ctx.beginPath(); ctx.roundRect(gx, gy, gw, gh, 8 * u); ctx.fill();
-    const cut = !autoBox && me.gear < PHYS.gears.length && rpm > 0.93 && me.thr;
-    if (cut && Math.floor(performance.now() / 90) % 2) { ctx.fillStyle = 'rgba(255,70,60,.55)'; ctx.fill(); }
     ctx.textAlign = 'center';
     ctx.font = `600 ${7.5 * u}px Archivo, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,.6)';
     ctx.fillText('MARCHA', gx + gw / 2, gy + 11 * u);
     setFont(26 * u); ctx.fillStyle = me.shiftT > 0 ? 'rgba(255,255,255,.45)' : '#ffd23f';
-    ctx.fillText(gearLabel(me), gx + gw / 2, gy + 37 * u);
-    ctx.font = `700 ${7.5 * u}px Archivo, sans-serif`; ctx.fillStyle = autoBox ? 'rgba(255,255,255,.6)' : '#4cd07d';
-    ctx.fillText(autoBox ? 'AUTO' : 'MANUAL', gx + gw / 2, gy + 47 * u);
+    ctx.fillText(gearLabel(me), gx + gw / 2, gy + 39 * u);
     ctx.restore();
   }
 
@@ -1073,14 +1068,6 @@ export function createGame(cv, hooks) {
     setCRT(on) { crtOn = !!on; },
     info,
     get state() { return state; },
-    // Cambio manual: d = +1 sube, -1 baja; vale también en la cuenta atrás
-    shift(d) {
-      const me = player();
-      if (autoBox || !me || me.finished || me.timeUp || (state !== 'race' && state !== 'count')) return;
-      shiftTo(me, me.gear + d);
-    },
-    setGearbox(auto) { autoBox = !!auto; },
-    get autoBox() { return autoBox; },
     get arcade() { return arc; },
     get cars() { return cars; },     // para depurar desde la consola
     get track() { return T; },
@@ -1093,7 +1080,7 @@ export function createGame(cv, hooks) {
         rain: COND.rain,
         me: {
           sp: Math.hypot(me.vx, me.vy), thr: state === 'count' ? keys.t : me.thr, brk: me.brk, hb: me.hb,
-          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, gear: me.gear, rpm: me.rpm, shifting: me.shiftT > 0, auto: autoBox, turbo: me.spec.era !== 'clasico', top: me.spec.max * PHYS.max, offKind: T.def.theme, dmg: me.dmg,
+          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, gear: me.gear, rpm: me.rpm, shifting: me.shiftT > 0, turbo: me.spec.era !== 'clasico', top: me.spec.max * PHYS.max, offKind: T.def.theme, dmg: me.dmg,
         },
         rivals: cars.filter((c) => !c.me).map((c) => ({
           dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr, rpm: c.rpm,

@@ -50,31 +50,63 @@ export function createAudio() {
     s.start(0, Math.random() * buf.duration * 0.9); return s;
   }
 
-  // Motor de cuatro cilindros: diente de sierra a la frecuencia de encendido (con otro algo
-  // desafinado), saturado más o menos según la carga; ruido de escape pulsado al mismo ritmo;
-  // turbo que silba y engranajes de dientes rectos que aúllan con las vueltas.
+  // Motor de cuatro cilindros hecho con explosiones: cada muestra en bucle guarda 64 explosiones
+  // (golpe grave, resonancia del escape y chasquido de ruido) con pequeñas diferencias entre
+  // cilindros, para que suene a motor y no a zumbido. Hay dos muestras por régimen (bajas y altas
+  // vueltas) y por carga (con gas: más áspera; sin gas: apagada); se mezclan y se aceleran con
+  // playbackRate según las vueltas.
+  const ENG_LO = 45, ENG_HI = 140;   // explosiones por segundo de cada muestra
+  function makeEngine(fire, onLoad) {
+    const sr = ctx.sampleRate, per = sr / fire, n = 64, len = Math.round(per * n);
+    const b = ctx.createBuffer(1, len, sr), d = b.getChannelData(0);
+    const cyl = [1, 0.82, 0.93, 0.76], fr = onLoad ? 190 : 140, ring = onLoad ? 0.007 : 0.005;
+    const span = Math.min(len, Math.round(sr * 0.05));
+    for (let k = 0; k < n; k++) {
+      const t0 = Math.round(k * per + (Math.random() - 0.5) * per * 0.05);
+      const amp = cyl[k % 4] * (0.85 + Math.random() * 0.3), ph = Math.random() * 0.6;
+      for (let i = 0; i < span; i++) {
+        const t = i / sr, j = (t0 + i + len) % len;
+        const thump = Math.exp(-t / 0.0035) * (1 - Math.exp(-t / 0.0004));
+        const body = Math.sin(2 * Math.PI * fr * t + ph) * Math.exp(-t / ring);
+        const rasp = (Math.random() * 2 - 1) * Math.exp(-t / (onLoad ? 0.0035 : 0.0015)) * (onLoad ? 0.45 : 0.15);
+        d[j] += amp * (1.2 * thump + 0.7 * body + rasp);
+      }
+    }
+    let mean = 0, peak = 0;
+    for (let i = 0; i < len; i++) mean += d[i];
+    mean /= len;
+    for (let i = 0; i < len; i++) { d[i] -= mean; peak = Math.max(peak, Math.abs(d[i])); }
+    for (let i = 0; i < len; i++) d[i] /= peak;
+    return b;
+  }
   function buildEngine() {
-    const out = gain(0), drive = gain(0.8), shaper = ctx.createWaveShaper(), lp = ctx.createBiquadFilter(), body = ctx.createBiquadFilter();
-    shaper.curve = distCurve(4);
-    lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 1.6;
-    body.type = 'peaking'; body.frequency.value = 160; body.Q.value = 1.1; body.gain.value = 6;   // cuerpo del escape
-    const o1 = ctx.createOscillator(), o1b = ctx.createOscillator(), o2 = ctx.createOscillator(), sub = ctx.createOscillator();
-    o1.type = 'sawtooth'; o1b.type = 'sawtooth'; o2.type = 'square'; sub.type = 'sine';
-    o1.connect(gain(0.42)).connect(drive); o1b.connect(gain(0.3)).connect(drive); o2.connect(gain(0.14)).connect(drive);
-    drive.connect(shaper).connect(lp).connect(body).connect(out);
-    sub.connect(gain(0.45)).connect(out);
-    // escape: ruido en banda modulado en amplitud por la frecuencia de encendido
-    const ex = loop(noiseBuf), exf = ctx.createBiquadFilter(), exAm = gain(0.5), exG = gain(0), pulse = ctx.createOscillator(), pg = gain(0.5);
-    exf.type = 'bandpass'; exf.frequency.value = 600; exf.Q.value = 0.9;
-    pulse.type = 'sawtooth'; pulse.connect(pg).connect(exAm.gain);
-    ex.connect(exf).connect(exAm).connect(exG).connect(out);
-    // turbo y caja
-    const tb = ctx.createOscillator(), tbG = gain(0), wh = ctx.createOscillator(), whG = gain(0);
-    tb.type = 'sine'; wh.type = 'triangle';
-    tb.connect(tbG).connect(master); wh.connect(whG).connect(master);
+    const buf = { lo: [makeEngine(ENG_LO, false), makeEngine(ENG_LO, true)], hi: [makeEngine(ENG_HI, false), makeEngine(ENG_HI, true)] };
+    const out = gain(0), sum = gain(1), drive = gain(1), shaper = ctx.createWaveShaper(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter();
+    shaper.curve = distCurve(1.6); shaper.oversample = '2x';
+    hp.type = 'highpass'; hp.frequency.value = 28;
+    lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.6;
+    const src = {}, g = {};
+    for (const r of ['lo', 'hi']) {
+      for (const l of [0, 1]) {
+        const k = r + l, s = loop(buf[r][l]), gg = gain(0);
+        s.connect(gg).connect(sum); src[k] = s; g[k] = gg;
+      }
+    }
+    sum.connect(drive).connect(shaper).connect(hp).connect(lp).connect(out);
+    // turbo: silbido suave
+    const tb = ctx.createOscillator(), tbG = gain(0);
+    tb.type = 'sine'; tb.connect(tbG).connect(master); tb.start();
     out.connect(master);
-    [o1, o1b, o2, sub, pulse, tb, wh].forEach((o) => o.start());
-    eng = { out, drive, lp, body, o1, o1b, o2, sub, pulse, exf, exG, tb, tbG, wh, whG };
+    eng = { out, drive, lp, src, g, tb, tbG, buf };
+  }
+  // Mezcla de las cuatro muestras para unas vueltas y una carga dadas
+  function engineMix(e, f, ld, tc) {
+    const w = clamp((f - 60) / (120 - 60), 0, 1), wl = Math.cos(w * Math.PI / 2), wh = Math.sin(w * Math.PI / 2);
+    const on = Math.sin(ld * Math.PI / 2), off = Math.cos(ld * Math.PI / 2);
+    setP(e.src.lo0.playbackRate, f / ENG_LO, tc); setP(e.src.lo1.playbackRate, f / ENG_LO, tc);
+    setP(e.src.hi0.playbackRate, f / ENG_HI, tc); setP(e.src.hi1.playbackRate, f / ENG_HI, tc);
+    setP(e.g.lo0.gain, wl * off, tc); setP(e.g.lo1.gain, wl * on, tc);
+    setP(e.g.hi0.gain, wh * off, tc); setP(e.g.hi1.gain, wh * on, tc);
   }
 
   function buildSurface() {
@@ -159,13 +191,15 @@ export function createAudio() {
 
   function buildRivals(n) {
     for (let i = 0; i < n; i++) {
-      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = gain(0);
+      const lp = ctx.createBiquadFilter(), g = gain(0), src = {}, gs = {};
       const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-      o.type = 'sawtooth'; o2.type = 'square'; lp.type = 'lowpass'; lp.frequency.value = 700;
-      o.connect(lp); o2.connect(gain(0.3)).connect(lp); lp.connect(g);
+      lp.type = 'lowpass'; lp.frequency.value = 700;
+      for (const r of ['lo', 'hi']) {
+        for (const l of [0, 1]) { const k = r + l, s = loop(eng.buf[r][l]); s.connect(gs[k] = gain(0)).connect(lp); src[k] = s; }
+      }
+      lp.connect(g);
       if (pan) { g.connect(pan).connect(master); } else g.connect(master);
-      o.start(); o2.start();
-      rivals.push({ o, o2, lp, g, pan, rpm: 0.2 });
+      rivals.push({ src, g: gs, lp, out: g, pan, rpm: 0.2, ld: 0 });
     }
   }
 
@@ -208,6 +242,7 @@ export function createAudio() {
   }
   const pop = (when = 0, v = 0.3) => { burst(0.045, 'bandpass', 700 + Math.random() * 500, v, when, 1.4); tone(90, 0.05, 'square', v * 0.3, when); };
 
+
   function sfx(name, d = {}) {
     if (!ready) return;
     const v = d.vol == null ? 1 : d.vol;
@@ -248,10 +283,9 @@ export function createAudio() {
       case 'extend': [880, 1175, 1568].forEach((f, i) => tone(f, 0.12, 'square', 0.12, i * 0.07)); break;
       case 'tick': tone(1480, 0.06, 'square', 0.13); break;
       case 'timeup': [523, 415, 330, 262].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.18, 'sawtooth', 0.14, i * 0.2)); break;
-      case 'gear':   // golpe seco de la palanca y, al subir, petardeo y soplido del turbo
-        burst(0.06, 'lowpass', 500, 0.3, 0, 1.2); tone(d.up ? 95 : 75, 0.06, 'square', 0.1);
-        burst(0.025, 'bandpass', 2400, 0.12, 0.01, 4);
-        if (d.up) { pop(0.02, 0.2); if (d.turbo) burst(0.32, 'highpass', 5200, 0.07, 0.03, 0.8, 2600); }
+      case 'gear':   // golpe sordo del cambio y, al subir, un petardeo y el soplido del turbo
+        burst(0.05, 'lowpass', 420, 0.16, 0, 1.2);
+        if (d.up) { pop(0.02, 0.1); if (d.turbo) burst(0.3, 'highpass', 5200, 0.04, 0.03, 0.8, 2600); }
         break;
       case 'combo': tone(1319, 0.07, 'triangle', 0.2); tone(1976, 0.16, 'triangle', 0.2, 0.06); break;
       case 'coin': tone(988, 0.08, 'square', 0.16); tone(1319, 0.3, 'square', 0.16, 0.08); break;
@@ -282,11 +316,11 @@ export function createAudio() {
   // ---------- Bucle continuo ----------
   function silence() {
     if (!ready) return;
-    setP(eng.out.gain, 0, 0.08); setP(eng.tbG.gain, 0, 0.08); setP(eng.whG.gain, 0, 0.08);
+    setP(eng.out.gain, 0, 0.08); setP(eng.tbG.gain, 0, 0.08);
     for (const k of ['hiss', 'gravel', 'wind', 'slosh']) setP(surf[k].g.gain, 0, 0.08);
     setP(surf.sloshDepth.gain, 0, 0.08);
     setP(surf.squeal.gain, 0, 0.05);
-    for (const r of rivals) setP(r.g.gain, 0, 0.08);
+    for (const r of rivals) setP(r.out.gain, 0, 0.08);
     setP(rain.g.gain, 0, 0.2); setP(rain.g2.gain, 0, 0.2);
   }
 
@@ -305,8 +339,6 @@ export function createAudio() {
     if (st.count && m.thr) target = 0.72 + Math.sin(t * 9) * 0.03;           // acelerar en parado en la cuenta atrás
     if (onGas && (m.air || m.slide > 70 || m.hb)) target = Math.min(1.04, target + 0.18); // patina o vuela
     target = Math.max(0.12, target);
-    const limiter = onGas && target >= 0.99;
-    if (limiter) target = 0.97 + (Math.sin(t * 95) > 0 ? 0.05 : -0.02);   // corte de inyección
     rpm += (target - rpm) * Math.min(1, dt * (shifting ? 14 : target > rpm ? 10 : 6));
     load += ((onGas ? 1 : 0) - load) * Math.min(1, dt * (onGas ? 12 : 7));
     if (lastThr && !m.thr && rpm > 0.6 && !st.count) {     // petardeo al soltar
@@ -315,20 +347,14 @@ export function createAudio() {
       if (m.turbo) burst(0.35, 'highpass', 5000, 0.06, 0.02, 0.8, 2400);
     }
     lastThr = m.thr;
-    const f0 = fireHz(rpm), gate = limiter && Math.sin(t * 95) > 0 ? 0.55 : 1;
-    setP(eng.o1.frequency, f0, 0.015); setP(eng.o1b.frequency, f0 * 1.007, 0.015);
-    setP(eng.o2.frequency, f0 * 0.5, 0.015); setP(eng.sub.frequency, f0 * 0.5, 0.015);
-    setP(eng.pulse.frequency, f0, 0.015);
-    setP(eng.drive.gain, 0.45 + load * 0.9, 0.03);
-    setP(eng.lp.frequency, 380 + rpm * 1900 + load * 1300, 0.03);
-    setP(eng.body.frequency, 110 + rpm * 120, 0.05);
-    setP(eng.exf.frequency, 300 + rpm * 1500, 0.03); setP(eng.exG.gain, (0.05 + load * 0.16) * (0.4 + rpm), 0.03);
-    setP(eng.out.gain, (0.09 + load * 0.14 + rpm * 0.07) * gate, 0.02);
-    // turbo: silba con carga y vueltas; caja de dientes rectos: aullido con la velocidad
-    const spool = m.turbo ? load * clamp((rpm - 0.35) / 0.6, 0, 1) : 0;
-    setP(eng.tb.frequency, 2400 + rpm * 4200, 0.05); setP(eng.tbG.gain, spool * spool * 0.025, 0.12);
-    setP(eng.wh.frequency, 250 + rpm * 1150 + (m.gear || 1) * 40, 0.03);
-    setP(eng.whG.gain, clamp(v, 0, 1) * (0.012 + (1 - load) * 0.014), 0.06);
+    const f0 = fireHz(rpm);
+    engineMix(eng, f0, load, 0.012);
+    setP(eng.drive.gain, 0.7 + load * 0.8, 0.03);
+    setP(eng.lp.frequency, 500 + rpm * 2600 + load * 1400, 0.03);
+    setP(eng.out.gain, 0.12 + load * 0.12 + rpm * 0.08, 0.02);
+    // turbo: silba un poco con carga y vueltas
+    const spool = m.turbo ? load * clamp((rpm - 0.4) / 0.55, 0, 1) : 0;
+    setP(eng.tb.frequency, 2800 + rpm * 3200, 0.05); setP(eng.tbG.gain, spool * spool * 0.008, 0.15);
 
     // rodadura según superficie
     const vs = Math.min(1, v * 1.2);
@@ -359,14 +385,14 @@ export function createAudio() {
     // rivales: motor lejano con panorama
     rivals.forEach((r, i) => {
       const o = st.rivals[i];
-      if (!o) { setP(r.g.gain, 0); return; }
+      if (!o) { setP(r.out.gain, 0); return; }
       const rv = o.sp / 300, tg = rv < 0.02 ? 0.15 : o.rpm != null ? Math.max(0.2, o.rpm) : 0.2 + rv * 0.7;
       r.rpm += (tg - r.rpm) * Math.min(1, dt * 6);
-      const f = fireHz(r.rpm);
-      setP(r.o.frequency, f * (1 + i * 0.013), 0.03); setP(r.o2.frequency, f * 2.01, 0.03);
+      r.ld += ((o.thr ? 1 : 0) - r.ld) * Math.min(1, dt * 8);
+      engineMix(r, fireHz(r.rpm) * (1 + i * 0.013), r.ld, 0.03);
       setP(r.lp.frequency, 400 + r.rpm * 1500, 0.05);
       const near = clamp(1 - o.dist / 650, 0, 1);
-      setP(r.g.gain, near * near * (o.thr ? 0.07 : 0.035), 0.06);
+      setP(r.out.gain, near * near * (o.thr ? 0.1 : 0.05), 0.06);
       if (r.pan) setP(r.pan.pan, o.pan, 0.05);
     });
   }
