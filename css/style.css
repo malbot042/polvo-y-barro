@@ -223,6 +223,8 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 .hud div { display: flex; flex-direction: column; line-height: 1.05; min-width: 58px; }
 .hud small { font: 600 10px var(--f-body); letter-spacing: .14em; text-transform: uppercase; color: var(--hud-dim); }
 .hud b { font-family: var(--f-display); font-style: italic; font-weight: 800; font-stretch: 80%; font-size: 23px; color: var(--hud-num); }
+.hud b.gear { color: var(--hud-ink); }
+.hud b.gear.hi { color: var(--hud-num); }
 .stage { position: relative; flex: 1; min-height: 0; }
 /* Con el efecto de monitor, algo más de brillo y color para compensar lo que oscurecen las barras */
 #cv.crt { filter: brightness(1.1) saturate(1.08); }

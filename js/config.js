@@ -76,8 +76,11 @@ export const PHYS = {
   // conducción arcade
   drift: 0.5,    // agarre que se pierde girando a fondo con gas a velocidad (derrape de potencia)
   counter: 1.9,  // multiplicador de agarre al contravolantear: el coche se endereza enseguida
-  keep: 0.4,     // parte de la velocidad lateral que el derrape convierte en avance en vez de perderla
   yaw: 0.3,      // giro extra (máx.) mientras el coche va cruzado
+  // caja de dos marchas (Shift): L empuja fuerte pero se queda corta; H llega a la punta pero
+  // acelera poco desde abajo (acc va de lowAcc a 1 hasta `full` de la velocidad punta)
+  gearL: { max: 0.55, acc: 1.2 },
+  gearH: { lowAcc: 0.22, full: 0.75 },
 };
 
 // ---------- Coches, mejoras y condiciones ----------

@@ -106,7 +106,7 @@ export function createGame(cv, hooks) {
     return {
       ...d, spec, model: spec.model, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
       idx, nd: 0, lv: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
-      air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
+      gear: 'L', air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
       dirt: { barro: 0, polvo: 0, nieve: 0 }, dmg: d.dmg || 0, pull: 0,
       lane, laneT: 1 + Math.random(), stuck: 0, rev: 0, rl: null, rr: null, thr: 0, hb: 0,
     };
@@ -325,14 +325,19 @@ export function createGame(cv, hooks) {
       let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
       if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
       if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') gripS *= COND.grip;
-      const acc = PHYS.acc * accS * spec.acc;
+      // caja de dos marchas: el jugador cambia con Shift; la IA cambia sola en el punto ideal
+      const maxCar = PHYS.max * c.skill * maxS * spec.max;
+      if (!c.me) c.gear = fs > maxCar * PHYS.gearL.max * 0.92 ? 'H' : 'L';
+      const GH = PHYS.gearH;
+      const gAcc = c.gear === 'L' ? PHYS.gearL.acc : clamp(GH.lowAcc + (1 - GH.lowAcc) * (fs / (maxCar * GH.full)), GH.lowAcc, 1);
+      const acc = PHYS.acc * accS * spec.acc * gAcc;
       if (inp.t) fs += acc * dt;
       if (inp.b) fs -= (fs > 5 ? PHYS.brake * (COND.rain ? 0.85 : 1) : PHYS.reverse) * dt;
       if (!inp.t && !inp.b) fs *= 1 - 0.7 * dt;
       let rb = 1;
       const me = player();
       if (!c.me && me && mode === 'carrera') { const gap = score(c) - score(me); rb = gap > T.n * 0.2 ? 0.9 : gap < -T.n * 0.2 ? 1.07 : 1; }
-      const max = PHYS.max * c.skill * rb * maxS * spec.max * (1 - c.dmg * 0.25);
+      const max = PHYS.max * c.skill * rb * maxS * spec.max * (1 - c.dmg * 0.25) * (c.gear === 'L' ? PHYS.gearL.max : 1);
       if (fs > max) fs = Math.max(max, fs - 520 * dt);
       if (fs < -PHYS.revMax) fs = -PHYS.revMax;
       let grip = gripS * spec.grip;
@@ -341,9 +346,7 @@ export function createGame(cv, hooks) {
       if (inp.t) grip *= 1 - PHYS.drift * Math.abs(c.steer) * vk;
       if (inp.hb) { grip *= 0.32; fs *= 1 - 1.1 * dt; }
       if (c.steer * ls > 0 && Math.abs(ls) > 25) grip *= PHYS.counter;
-      const ls0 = ls;
       ls *= Math.exp(-grip * dt);
-      if (fs > 0) fs = Math.max(fs, Math.min(max, fs + Math.abs(ls0 - ls) * PHYS.keep));
       const steerIn = clamp(inp.s + (c.me ? c.pull * c.dmg * 0.22 : 0), -1, 1);
       c.steer += (steerIn - c.steer) * Math.min(1, dt * 14);
       const rate = PHYS.steer * clamp(fs / 80, -1, 1) * (1 - Math.min(0.32, (Math.abs(fs) / PHYS.max) * 0.32)) * (inp.hb ? 1.35 : 1)
@@ -588,6 +591,7 @@ export function createGame(cv, hooks) {
       aL, a, bL, b,
       time: fmtTime(me.finished ? me.ft : raceT),
       speed: Math.round(Math.hypot(me.vx, me.vy) * M_PER_PX * 3.6),
+      gear: me.gear,
       dmg: Math.round(me.dmg * 100),
     };
   }
@@ -974,6 +978,13 @@ export function createGame(cv, hooks) {
     setCRT(on) { crtOn = !!on; },
     info,
     get state() { return state; },
+    // Cambia entre marcha corta (L) y larga (H); vale también en la cuenta atrás
+    shift() {
+      const me = player();
+      if (!me || me.finished || me.timeUp || (state !== 'race' && state !== 'count')) return;
+      me.gear = me.gear === 'L' ? 'H' : 'L';
+      sfx('gear', { up: me.gear === 'H' });
+    },
     get arcade() { return arc; },
     get cars() { return cars; },     // para depurar desde la consola
     get track() { return T; },
@@ -986,7 +997,7 @@ export function createGame(cv, hooks) {
         rain: COND.rain,
         me: {
           sp: Math.hypot(me.vx, me.vy), thr: state === 'count' ? keys.t : me.thr, brk: me.brk, hb: me.hb,
-          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, offKind: T.def.theme, dmg: me.dmg,
+          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, gear: me.gear, top: me.spec.max * PHYS.max, offKind: T.def.theme, dmg: me.dmg,
         },
         rivals: cars.filter((c) => !c.me).map((c) => ({
           dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr,

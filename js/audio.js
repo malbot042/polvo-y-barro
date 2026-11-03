@@ -238,6 +238,7 @@ export function createAudio() {
       case 'extend': [880, 1175, 1568].forEach((f, i) => tone(f, 0.12, 'square', 0.12, i * 0.07)); break;
       case 'tick': tone(1480, 0.06, 'square', 0.13); break;
       case 'timeup': [523, 415, 330, 262].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.18, 'sawtooth', 0.14, i * 0.2)); break;
+      case 'gear': pop(0, 0.22); burst(0.05, 'bandpass', d.up ? 1800 : 900, 0.14, 0, 2); tone(d.up ? 140 : 110, 0.07, 'square', 0.08); break;
       case 'combo': tone(1319, 0.07, 'triangle', 0.2); tone(1976, 0.16, 'triangle', 0.2, 0.06); break;
       case 'coin': tone(988, 0.08, 'square', 0.16); tone(1319, 0.3, 'square', 0.16, 0.08); break;
       case 'note': speak(noteText(d.no) + (d.next ? ' y ' + noteText(d.next) : '')); break;
@@ -283,10 +284,12 @@ export function createAudio() {
     const m = st.me, v = m.sp / 300;
 
     // motor y marchas
-    const g = gearFor(v);
-    if (g > gear && m.thr) { pop(0.01, 0.18); burst(0.03, 'highpass', 2600, 0.08); }
-    gear = g;
-    let target = v < 0.02 && !m.thr ? 0.14 : rpmFor(v, gear);
+    // caja de dos marchas: en L el motor llega al corte pronto; en H sube despacio
+    const top = m.top ? m.sp / m.top : v;
+    let target;
+    if (m.gear) target = v < 0.02 && !m.thr ? 0.14 : m.gear === 'L' ? 0.2 + 0.85 * clamp(top / 0.55, 0, 1) : 0.16 + 0.84 * clamp(top, 0, 1);
+    else { const g = gearFor(v); if (g > gear && m.thr) { pop(0.01, 0.18); burst(0.03, 'highpass', 2600, 0.08); } gear = g; target = v < 0.02 && !m.thr ? 0.14 : rpmFor(v, gear); }
+    if (m.gear === 'L' && m.thr && top > 0.53) target = 1.02 + Math.sin(t * 70) * 0.04;   // corte de inyección
     if (st.count && m.thr) target = 0.78;                       // acelerar en parado en la cuenta atrás
     if (m.thr && (m.air || m.slide > 70 || m.hb)) target = Math.min(1.05, target + 0.22); // patina o vuela
     rpm += (target - rpm) * Math.min(1, dt * (target > rpm ? 9 : 6));

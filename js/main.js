@@ -479,13 +479,15 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyF') { toggleFull(); return; }
   if (e.code === 'Escape' && isFull() && !document.fullscreenElement && !document.webkitFullscreenElement) { exitFull(); return; }
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) { e.preventDefault(); game.shift(); return; }
   if (e.code === 'KeyM') { audio.unlock(); audio.setMuted(!audio.muted); store.set('pyb-mute', audio.muted); syncSoundUI(); return; }
   const k = KMAP[e.code]; if (!k) return;
   e.preventDefault(); game.keys[k] = 1;
 });
 window.addEventListener('keyup', (e) => { const k = KMAP[e.code]; if (k) game.keys[k] = 0; });
 window.addEventListener('blur', () => { for (const k in game.keys) game.keys[k] = 0; });
-document.querySelectorAll('.pad').forEach((b) => {
+$('p-gear').addEventListener('pointerdown', (e) => { e.preventDefault(); game.shift(); });
+document.querySelectorAll('.pad[data-k]').forEach((b) => {
   const k = b.dataset.k;
   const on = (e) => { e.preventDefault(); game.keys[k] = 1; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
   const off = () => { game.keys[k] = 0; b.classList.remove('on'); };
@@ -613,12 +615,13 @@ let hudKey = '';
 function updateHud() {
   const h = game.hud();
   if (!h) return;
-  const k = [h.aL, h.a, h.bL, h.b, h.time, h.speed, h.dmg].join('|');
+  const k = [h.aL, h.a, h.bL, h.b, h.time, h.speed, h.gear, h.dmg].join('|');
   if (k === hudKey) return;
   hudKey = k;
   $('h-al').textContent = h.aL; $('h-a').textContent = h.a;
   $('h-bl').textContent = h.bL; $('h-b').textContent = h.b;
   $('h-time').textContent = h.time; $('h-speed').textContent = h.speed;
+  $('h-gear').textContent = h.gear; $('h-gear').classList.toggle('hi', h.gear === 'H');
   $('h-dmg').textContent = h.dmg + '%';
 }
 

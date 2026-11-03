@@ -36,6 +36,7 @@
           <div><small id="h-bl">Récord</small><b id="h-b">—</b></div>
           <div><small>Tiempo</small><b id="h-time">0:00.00</b></div>
           <div><small>km/h</small><b id="h-speed">0</b></div>
+          <div><small>Marcha</small><b id="h-gear" class="gear">L</b></div>
           <div><small>Daños</small><b id="h-dmg">0%</b></div>
           <button type="button" class="hudbtn" id="p-restart" title="Reiniciar la carrera">Reiniciar</button>
           <button type="button" class="fsbtn" id="fs" aria-label="Pantalla completa" title="Pantalla completa (F)">
@@ -52,9 +53,10 @@
             <button type="button" class="pad" data-k="l" aria-label="Girar a la izquierda">◀</button>
             <button type="button" class="pad" data-k="r" aria-label="Girar a la derecha">▶</button>
           </div>
-          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Enter</kbd> empezar o seguir · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
+          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Shift</kbd> marcha L/H · <kbd>Enter</kbd> empezar o seguir · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
           <div class="grp right">
             <button type="button" class="pad" data-k="hb" aria-label="Freno de mano">Mano</button>
+            <button type="button" class="pad" id="p-gear" aria-label="Cambiar de marcha">L/H</button>
             <button type="button" class="pad" data-k="b" aria-label="Freno">Freno</button>
             <button type="button" class="pad gas" data-k="t" aria-label="Acelerar">Gas</button>
           </div>

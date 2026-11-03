@@ -30,6 +30,7 @@ El juego ocupa toda la ventana. Arriba hay un menú que abre ventanas por encima
 | Acelerar | ↑ o W | Gas |
 | Frenar / marcha atrás | ↓ o S | Freno |
 | Freno de mano (derrape) | Espacio | Mano |
+| Cambiar de marcha (L/H) | Shift | L/H |
 | Empezar | Enter | Empezar |
 | Silenciar | M | Sonido |
 | Pantalla completa | F (Esc para salir) | botón del marcador |
@@ -43,7 +44,7 @@ El juego ocupa toda la ventana. Arriba hay un menú que abre ventanas por encima
 
 ### Circuitos
 
-Hay 20 circuitos, cuatro por continente. Cada uno dura unos 1:20 con el piloto de referencia de la IA (un Grupo A de serie, en seco), con las vueltas ajustadas para ello.
+Hay 20 circuitos, cuatro por continente, con vueltas de 1,15 a 1,55 km. Las formas varían: contornos en L, U, T o escalera, manchas alargadas en distintas direcciones y cuatro ochos con puente. La mitad se recorren en sentido horario y la otra mitad en antihorario, y cada uno sale desde un punto distinto. Las carreras son de dos vueltas (tres en Córcega).
 
 | Continente | Circuitos |
 |---|---|
@@ -53,7 +54,7 @@ Hay 20 circuitos, cuatro por continente. Cada uno dura unos 1:20 con el piloto d
 | América | Altiplano Andino (desierto) · Selva de Yucatán · Bosques de la Patagonia (nieve) · Sierra de Guanajuato (desierto) |
 | Oceanía | Desierto Rojo de Australia · Bosques de Nueva Zelanda · Costa de Tasmania · Islas Fiyi (selva) |
 
-Los trazados están generados para no solaparse consigo mismos y tener curvas de rally. La temporada del campeonato y los seis tramos de la recreativa recorren varios continentes.
+Los trazados están generados para no solaparse (salvo el cruce de los ochos) y combinar curvas largas y abiertas con dos o tres cerradas por vuelta. La temporada del campeonato y los seis tramos de la recreativa recorren varios continentes.
 
 ### Campeonato
 
@@ -72,7 +73,7 @@ Seco, lluvia, noche y lluvia de noche. La lluvia quita un 20 % de agarre en asfa
 
 ### Puentes
 
-Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte automáticamente en un puente. Los coches de arriba y los de abajo no chocan entre sí, y el puente tapa a los que pasan por debajo. Ninguno de los circuitos incluidos se cruza, pero funciona en los que hagas con el editor.
+Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte automáticamente en un puente. Los coches de arriba y los de abajo no chocan entre sí, y el puente tapa a los que pasan por debajo. Los ochos de Córcega, el Sáhara, Yucatán y Tasmania tienen uno, y funciona igual en los circuitos del editor.
 
 ### Sonido
 
@@ -91,7 +92,9 @@ Todo el audio se genera en el navegador con Web Audio, sin archivos:
 
 El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pacas, conos, farolas, arcos de salida, control y meta, y puentes tienen volumen y se ordenan por profundidad con los coches. Los árboles que tapan tu coche se vuelven transparentes. La física sigue siendo 2D; solo cambia cómo se dibuja.
 
-La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia), el coche gira más mientras va cruzado y apenas pierde velocidad. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `keep`, `yaw`) dentro de `js/config.js`.
+La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia) y el coche gira más mientras va cruzado; derrapar nunca acelera el coche. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `yaw`) dentro de `js/config.js`.
+
+Hay una caja de dos marchas que se cambia con Shift: **L** (corta) empuja fuerte pero se queda en algo más de la mitad de la punta, con el motor en el corte; **H** (larga) llega a la velocidad punta pero acelera poco desde abajo. Lo rápido es salir en L y pasar a H, y volver a L en las curvas lentas. El marcador muestra la marcha y el motor suena según la que llevas. Los rivales cambian solos. Se ajusta en `PHYS.gearL` y `PHYS.gearH`.
 
 ### Efecto de monitor
 
