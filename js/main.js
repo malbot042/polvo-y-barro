@@ -110,7 +110,7 @@ function idleCard(i) {
     extra = `<p class="muted">Tiempos de los rivales: ${i.field.map((f) => `${esc(f.name)} <b>${fmtTime(f.time)}</b>`).join(' · ')}</p>`;
   } else if (mode === 'rally') {
     extra = `<p class="muted">Récord con este coche: <b>${i.best != null ? fmtTime(i.best) : 'sin tiempo'}</b>${i.best != null ? ' · correrás contra tu fantasma' : ''}</p>`;
-  } else extra = '<p class="muted">Coge las latas de nitro, usa los saltos y no te dejes empujar.</p>';
+  } else extra = '<p class="muted">Aprovecha los saltos de las rectas y no te dejes empujar.</p>';
   if (ev) extra += `<p class="muted">Daños al salir: <b>${Math.round(career.car().dmg * 100)}%</b> · Puntos: ${POINTS.join(' / ')}</p>`;
   const change = ev ? '' : '<button class="btn ghost" id="o-cfg">Cambiar carrera</button>';
   return `<div class="card"><span class="eyebrow">${modeTxt}</span><h3>${esc(i.name)}</h3><p>${meta}</p>${extra}<div class="row"><button class="btn" id="o-go" data-enter>Empezar</button>${change}</div></div>`;
@@ -468,7 +468,7 @@ $('c-reset').addEventListener('click', () => {
 });
 
 // ---------- Teclado y táctil ----------
-const KMAP = { ArrowUp: 't', KeyW: 't', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', Space: 'hb', ShiftLeft: 'n', ShiftRight: 'n', KeyN: 'n' };
+const KMAP = { ArrowUp: 't', KeyW: 't', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', Space: 'hb' };
 const typing = (e) => /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '');
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && openWin()) { e.preventDefault(); showTab('play'); return; }
@@ -613,13 +613,12 @@ let hudKey = '';
 function updateHud() {
   const h = game.hud();
   if (!h) return;
-  const nit = '◆'.repeat(h.nitro) + '◇'.repeat(Math.max(0, h.nitroCap - h.nitro));
-  const k = [h.aL, h.a, h.bL, h.b, h.time, h.speed, nit, h.dmg].join('|');
+  const k = [h.aL, h.a, h.bL, h.b, h.time, h.speed, h.dmg].join('|');
   if (k === hudKey) return;
   hudKey = k;
   $('h-al').textContent = h.aL; $('h-a').textContent = h.a;
   $('h-bl').textContent = h.bL; $('h-b').textContent = h.b;
-  $('h-time').textContent = h.time; $('h-speed').textContent = h.speed; $('h-nitro').textContent = nit;
+  $('h-time').textContent = h.time; $('h-speed').textContent = h.speed;
   $('h-dmg').textContent = h.dmg + '%';
 }
 

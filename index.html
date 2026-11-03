@@ -36,7 +36,6 @@
           <div><small id="h-bl">Récord</small><b id="h-b">—</b></div>
           <div><small>Tiempo</small><b id="h-time">0:00.00</b></div>
           <div><small>km/h</small><b id="h-speed">0</b></div>
-          <div><small>Nitro</small><b id="h-nitro">◆◆◇</b></div>
           <div><small>Daños</small><b id="h-dmg">0%</b></div>
           <button type="button" class="hudbtn" id="p-restart" title="Reiniciar la carrera">Reiniciar</button>
           <button type="button" class="fsbtn" id="fs" aria-label="Pantalla completa" title="Pantalla completa (F)">
@@ -53,10 +52,9 @@
             <button type="button" class="pad" data-k="l" aria-label="Girar a la izquierda">◀</button>
             <button type="button" class="pad" data-k="r" aria-label="Girar a la derecha">▶</button>
           </div>
-          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Shift</kbd> nitro · <kbd>Enter</kbd> empezar o seguir · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
+          <span class="keys"><kbd>←</kbd> <kbd>→</kbd> girar · <kbd>↑</kbd> gas · <kbd>↓</kbd> freno · <kbd>Espacio</kbd> freno de mano · <kbd>Enter</kbd> empezar o seguir · <kbd>M</kbd> silencio · <kbd>F</kbd> pantalla completa</span>
           <div class="grp right">
             <button type="button" class="pad" data-k="hb" aria-label="Freno de mano">Mano</button>
-            <button type="button" class="pad" data-k="n" aria-label="Nitro">N2O</button>
             <button type="button" class="pad" data-k="b" aria-label="Freno">Freno</button>
             <button type="button" class="pad gas" data-k="t" aria-label="Acelerar">Gas</button>
           </div>
@@ -161,8 +159,7 @@
         <button type="button" class="tool" data-tool="trazo"><i style="--sw:#ffffff;border:1px solid #13283b"></i>Trazado</button>
         <button type="button" class="tool" data-tool="barro"><i style="--sw:#5b3c22"></i>Barro</button>
         <button type="button" class="tool" data-tool="agua"><i style="--sw:#4f7fa3"></i>Agua</button>
-        <button type="button" class="tool" data-tool="rampa"><i style="--sw:#d2bb93"></i>Rampa</button>
-        <button type="button" class="tool" data-tool="nitro"><i style="--sw:#ffd23f"></i>Nitro</button>
+        <button type="button" class="tool" data-tool="rampa"><i style="--sw:#d2bb93"></i>Salto</button>
         <button type="button" class="tool" data-tool="arbol"><i style="--sw:#3f6f2f"></i>Árbol</button>
         <button type="button" class="tool" data-tool="roca"><i style="--sw:#7d7062"></i>Roca</button>
         <button type="button" class="tool" data-tool="paja"><i style="--sw:#d4b25a"></i>Paja</button>
@@ -262,7 +259,7 @@
         <div class="about">
     <span class="eyebrow">La propuesta</span>
     <h2>Rally de recreativa con el caos del off-road</h2>
-    <p>La cámara sigue a tu coche en perspectiva isométrica por circuitos más grandes que la pantalla, como en los rallies de recreativa: árboles, rocas, pacas, rampas y puentes tienen volumen, y los árboles que te tapan se vuelven transparentes. La conducción es arcade: con gas y volante a fondo la trasera se suelta, y al contravolantear el coche se endereza enseguida. Del off-road clásico vienen los saltos, el nitro, los empujones y los circuitos cerrados con cuatro coches.</p>
+    <p>La cámara sigue a tu coche en perspectiva isométrica por circuitos más grandes que la pantalla, como en los rallies de recreativa: árboles, rocas, pacas y puentes tienen volumen, los árboles que te tapan se vuelven transparentes y en las rectas hay cambios de rasante para saltar. La conducción es arcade: con gas y volante a fondo la trasera se suelta, y al contravolantear el coche se endereza enseguida. Del off-road clásico vienen los saltos, los empujones y los circuitos cerrados con cuatro coches.</p>
     <div class="cols">
       <div class="sheet">
         <h3>Recreativa</h3>
@@ -275,7 +272,7 @@
       </div>
       <div class="sheet">
         <h3>Carrera</h3>
-        <p>Cuatro coches en circuito cerrado o en tramo. Los rivales frenan antes de las curvas, esquivan obstáculos, usan nitro en las rectas y se recuperan si se atascan.</p>
+        <p>Cuatro coches en circuito cerrado o en tramo. Los rivales frenan antes de las curvas, esquivan obstáculos, aprovechan las rectas y se recuperan si se atascan.</p>
       </div>
       <div class="sheet">
         <h3>Superficies</h3>
@@ -283,7 +280,7 @@
       </div>
       <div class="sheet">
         <h3>Editor</h3>
-        <p>El trazado se dibuja con puntos. Cada tramo tiene su superficie y su ancho, y sobre el mapa se colocan rampas, latas, pacas y conos. Se prueba al momento, se guarda en el navegador y se comparte como texto.</p>
+        <p>El trazado se dibuja con puntos. Cada tramo tiene su superficie y su ancho, y sobre el mapa se colocan saltos, pacas y conos. Se prueba al momento, se guarda en el navegador y se comparte como texto.</p>
       </div>
     </div>
 
@@ -303,7 +300,7 @@
       <div class="sheet">
         <span class="when">Fase 1 · hecho</span>
         <h3>Base jugable</h3>
-        <ul><li>Física con derrape y freno de mano</li><li>Cinco superficies, saltos y nitro</li><li>Notas del copiloto, parciales y fantasma</li><li>Tres rivales con IA</li><li>Editor con guardado e intercambio</li><li>Sonido de motor, superficies y copiloto por voz</li></ul>
+        <ul><li>Física con derrape y freno de mano</li><li>Cinco superficies y saltos</li><li>Notas del copiloto, parciales y fantasma</li><li>Tres rivales con IA</li><li>Editor con guardado e intercambio</li><li>Sonido de motor, superficies y copiloto por voz</li></ul>
       </div>
       <div class="sheet">
         <span class="when">Fase 2 · hecho</span>

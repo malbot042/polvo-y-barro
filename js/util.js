@@ -1,6 +1,7 @@
 // Utilidades compartidas
-export const WW = 2400;          // ancho del mundo (px)
-export const WH = 1500;          // alto del mundo (px)
+export const WW = 3600;          // ancho del mundo (px)
+export const WH = 2400;          // alto del mundo (px)
+export const AREA = (WW * WH) / (2400 * 1500);   // superficie frente al mundo original, para escalar la decoración
 export const SP = 8;             // separación entre muestras del trazado (px)
 export const M_PER_PX = 0.15;    // escala: un coche (26 px) ≈ 4 m
 

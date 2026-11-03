@@ -283,7 +283,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 .edgrid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 14px; align-items: start; }
 @media (max-width: 880px) { .edgrid { grid-template-columns: minmax(0, 1fr); } }
 .edstage { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-#ecv { display: block; width: 100%; aspect-ratio: 2400 / 1500; border-radius: 8px; touch-action: none; cursor: crosshair; background: #6c9748; }
+#ecv { display: block; width: 100%; aspect-ratio: 3600 / 2400; border-radius: 8px; touch-action: none; cursor: crosshair; background: #6c9748; }
 .edstat { margin: 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .hint { margin: 0; font-size: 13px; color: var(--ink); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
 .edside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }

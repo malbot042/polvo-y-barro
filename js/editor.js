@@ -1,7 +1,7 @@
 // Editor de circuitos: trazado por puntos, superficie y ancho por tramo, objetos.
 import { WW, WH, M_PER_PX, clamp } from './util.js';
 import { THEME, WIDTHS, SURF } from './config.js';
-import { buildTrack, nearestGlobal, normalizeDef, cleanDef, drawCone, drawNitro } from './track.js';
+import { buildTrack, nearestGlobal, normalizeDef, cleanDef, drawCone } from './track.js';
 
 const TOOL_HINT = {
   trazo: 'Pulsa fuera de la pista para añadir un punto al final y sobre la pista para insertar uno en medio. Arrastra los puntos para moverlos.',
@@ -11,16 +11,17 @@ const TOOL_HINT = {
   roca: 'Pulsa para colocar una roca sólida.',
   paja: 'Pulsa para colocar una paca de paja. Útil para marcar el exterior de las curvas.',
   cono: 'Pulsa para colocar un cono. Los coches los arrastran al pasar.',
-  rampa: 'Pulsa sobre la pista para poner una rampa. Se orienta sola en el sentido de la marcha.',
-  nitro: 'Pulsa para dejar una lata de nitro. Reaparece a los 8 segundos.',
+  rampa: 'Pulsa sobre una recta para poner un salto natural: un cambio de rasante que cruza la pista de lado a lado.',
   borrar: 'Pulsa sobre un punto del trazado o sobre un objeto para quitarlo.',
 };
 
 export function createEditor(cv, hooks) {
   const $ = (id) => document.getElementById(id);
   const ctx = cv.getContext('2d');
-  const mk = () => { const c = document.createElement('canvas'); c.width = WW; c.height = WH; return c; };
-  const layers = { g: mk(), t: mk() };
+  // capas a media resolución: el mapa del editor se ve reducido y así gasta una cuarta parte de memoria
+  const LS = 0.5;
+  const mk = () => { const c = document.createElement('canvas'); c.width = WW * LS; c.height = WH * LS; return c; };
+  const layers = { g: mk(), t: mk(), s: LS };
   let def = null, T = null, tool = 'trazo', sel = -1, drag = null, undo = [], need = null, dirty = true, dpr = 1;
 
   const pxWorld = () => WW / (cv.clientWidth || 1);
@@ -91,7 +92,6 @@ export function createEditor(cv, hooks) {
 
     for (const o of def.objs) {
       if (o.k === 'cono') drawCone(ctx, o);
-      else if (o.k === 'nitro') drawNitro(ctx, o, 0);
     }
     // contorno de manchas para poder seleccionarlas
     ctx.lineWidth = 1.2 * px; ctx.setLineDash([4 * px, 4 * px]); ctx.strokeStyle = 'rgba(255,255,255,.55)';

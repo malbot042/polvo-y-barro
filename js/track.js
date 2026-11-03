@@ -1,5 +1,5 @@
 // Geometría del trazado, notas del copiloto y dibujo de capas estáticas.
-import { WW, WH, SP, clamp, lerp, wrapA, rng, hashStr } from './util.js';
+import { WW, WH, AREA, SP, clamp, lerp, wrapA, rng, hashStr } from './util.js';
 import { SURF, ROAD_SURFACES, THEME, OBJ, DEFAULT_W } from './config.js';
 
 const CELL = 80;
@@ -171,13 +171,13 @@ export function buildTrack(def, layers, opts = {}) {
   });
 
   T.patches = (def.patches || []).map((p) => ({ k: p.k, x: p.x, y: p.y, r: p.r || 44 }));
-  T.solids = []; T.ramps = []; T.nitros = []; T.cones = []; T.user = [];
+  T.solids = []; T.ramps = []; T.cones = []; T.user = [];
   for (const o of def.objs || []) {
     if (o.k === 'rampa') {
-      const a = o.a != null ? o.a : S[nearestGlobal(T, o.x, o.y).i].h;
-      T.ramps.push({ x: o.x, y: o.y, a });
-    } else if (o.k === 'nitro') T.nitros.push({ x: o.x, y: o.y });
-    else if (o.k === 'cono') T.cones.push({ x: o.x, y: o.y });
+      // salto natural: un cambio de rasante centrado en la pista, de lado a lado y en el sentido de la marcha
+      const s = S[nearestGlobal(T, o.x, o.y).i];
+      T.ramps.push({ x: s.x, y: s.y, a: s.h, w: s.w, s: s.s });
+    } else if (o.k === 'cono') T.cones.push({ x: o.x, y: o.y });
     else if (OBJ[o.k]) {
       const d = { k: o.k, x: o.x, y: o.y, r: OBJ[o.k].r, s: 1, seed: hashStr(o.x + ',' + o.y) };
       T.user.push(d);
@@ -242,8 +242,8 @@ function findBridges(T) {
 function genDecor(T) {
   const R = rng(hashStr(T.def.name || 'pista'));
   const kinds = T.theme.decor, occ = [...T.user];
-  const avoid = T.ramps.concat(T.nitros, T.cones);
-  for (let k = 0; k < 1800 && T.decor.length < 240; k++) {
+  const avoid = T.ramps.concat(T.cones);
+  for (let k = 0, tries = Math.round(1800 * AREA), max = Math.round(240 * AREA); k < tries && T.decor.length < max; k++) {
     const x = 20 + R() * (WW - 40), y = 20 + R() * (WH - 40);
     const nn = nearestGlobal(T, x, y);
     if (nn.d < T.S[nn.i].w / 2 + 40) continue;
@@ -297,9 +297,9 @@ export function paintGround(g, theme, seed) {
     const c = groundCache.getContext('2d'), R = rng(seed ^ 0x5bd1e995);
     c.fillStyle = theme.ground; c.fillRect(0, 0, WW, WH);
     c.globalAlpha = 0.45; c.fillStyle = theme.ground2;
-    for (let i = 0; i < 650; i++) { c.beginPath(); c.ellipse(R() * WW, R() * WH, 20 + R() * 60, 14 + R() * 40, R() * 3, 0, 7); c.fill(); }
+    for (let i = 0; i < 650 * AREA; i++) { c.beginPath(); c.ellipse(R() * WW, R() * WH, 20 + R() * 60, 14 + R() * 40, R() * 3, 0, 7); c.fill(); }
     c.globalAlpha = 1;
-    for (let i = 0; i < 7000; i++) {
+    for (let i = 0; i < 7000 * AREA; i++) {
       c.fillStyle = R() < 0.5 ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.09)';
       c.fillRect(R() * WW, R() * WH, 1 + R() * 2, 1 + R() * 2);
     }
@@ -407,10 +407,11 @@ function renderBridges(T) {
 }
 
 // iso: el juego dibuja con volumen rampas, árboles, rocas, postes y puentes; aquí solo va el suelo
+// layers.s: escala de los canvas frente al mundo (el editor los usa a media resolución)
 export function renderLayers(T, layers, iso = false) {
-  const g = layers.g.getContext('2d'), t = layers.t.getContext('2d');
+  const g = layers.g.getContext('2d'), t = layers.t.getContext('2d'), k = layers.s || 1;
   const th = T.theme, S = T.S, n = T.n, segN = T.loop ? n : n - 1;
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(k, 0, 0, k, 0, 0);
   paintGround(g, th, hashStr(T.def.name || ''));
 
   for (const d of T.decor) if (d.k === 'arbusto') drawBush(g, d, th);
@@ -429,11 +430,11 @@ export function renderLayers(T, layers, iso = false) {
   for (const p of T.patches) drawPatch(g, p);
   drawChecker(g, S[T.start]);
   if (!T.loop) drawChecker(g, S[T.finish]);
-  if (iso) return;
   for (const r of T.ramps) drawRamp(g, r);
+  if (iso) return;
 
   // capa superior: copas de árboles, rocas, postes de control
-  t.setTransform(1, 0, 0, 1, 0, 0);
+  t.setTransform(k, 0, 0, k, 0, 0);
   t.clearRect(0, 0, WW, WH);
   for (const d of T.decor) if (d.k !== 'arbusto') drawDecor(t, d, th);
   for (const d of T.user) drawDecor(t, d, th);
@@ -466,16 +467,23 @@ function drawPosts(t, s, flag) {
   }
 }
 
+// Salto natural: lomo del terreno que cruza la pista. La subida queda iluminada, la cresta clara
+// y la bajada en sombra, con tierra suelta y rodadas.
 export function drawRamp(g, r) {
+  const W = (r.w || 90) + 20, L = 64, R = rng(hashStr('salto' + r.x + ',' + r.y));
   g.save(); g.translate(r.x, r.y); g.rotate(r.a);
-  const L = 34, W = 60;
-  g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(-L / 2 + 5, -W / 2 + 5, L, W);
+  g.save(); g.beginPath(); g.ellipse(0, 0, L / 2, W / 2, 0, 0, 7); g.clip();
   const gr = g.createLinearGradient(-L / 2, 0, L / 2, 0);
-  gr.addColorStop(0, '#6b5a45'); gr.addColorStop(1, '#d2bb93');
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.35, 'rgba(255,240,215,.22)');
+  gr.addColorStop(0.5, 'rgba(255,245,225,.38)'); gr.addColorStop(0.62, 'rgba(0,0,0,.18)');
+  gr.addColorStop(0.85, 'rgba(0,0,0,.1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = gr; g.fillRect(-L / 2, -W / 2, L, W);
-  g.strokeStyle = 'rgba(60,45,30,.55)'; g.lineWidth = 1.5;
-  for (let x = -L / 2 + 6; x < L / 2 - 4; x += 6) { g.beginPath(); g.moveTo(x, -W / 2); g.lineTo(x, W / 2); g.stroke(); }
-  for (let y = -W / 2, k = 0; y < W / 2; y += 10, k++) { g.fillStyle = k % 2 ? '#1b1b1b' : '#f2c230'; g.fillRect(L / 2 - 5, y, 5, 10); }
+  g.fillStyle = r.s === 'asfalto' ? 'rgba(20,20,22,.18)' : 'rgba(90,60,30,.22)';
+  for (let k = 0; k < 40; k++) g.fillRect((R() - 0.5) * L * 0.8, (R() - 0.5) * W * 0.9, 1.5 + R() * 2, 1.5 + R() * 2);
+  g.restore();
+  // rodadas que pasan por encima
+  g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 5;
+  for (const y of [-W * 0.2, W * 0.2]) { g.beginPath(); g.moveTo(-L / 2, y); g.lineTo(L / 2, y); g.stroke(); }
   g.restore();
 }
 
@@ -608,16 +616,5 @@ export function drawCone(c, k) {
   c.fillStyle = '#ff8a3d'; c.beginPath(); c.arc(0, 0, 4, 0, 7); c.fill();
   c.fillStyle = '#fff'; c.beginPath(); c.arc(0, 0, 2.4, 0, 7); c.fill();
   c.fillStyle = '#ff6a1f'; c.beginPath(); c.arc(0, 0, 1.1, 0, 7); c.fill();
-  c.restore();
-}
-
-export function drawNitro(c, p, time) {
-  const b = Math.sin((time || 0) / 260) * 1.5;
-  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(p.x + 3, p.y + 4, 7, 5, 0, 0, 7); c.fill();
-  c.save(); c.translate(p.x, p.y - b);
-  c.fillStyle = '#ffd23f'; c.beginPath(); c.roundRect(-6, -8, 12, 16, 3); c.fill();
-  c.fillStyle = '#c99a00'; c.fillRect(-6, 4, 12, 2);
-  c.fillStyle = '#1d2630'; c.font = 'italic 800 10px Saira, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('N', 0, -1);
   c.restore();
 }

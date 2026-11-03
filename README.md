@@ -30,7 +30,6 @@ El juego ocupa toda la ventana. Arriba hay un menú que abre ventanas por encima
 | Acelerar | ↑ o W | Gas |
 | Frenar / marcha atrás | ↓ o S | Freno |
 | Freno de mano (derrape) | Espacio | Mano |
-| Nitro | Shift o N | N2O |
 | Empezar | Enter | Empezar |
 | Silenciar | M | Sonido |
 | Pantalla completa | F (Esc para salir) | botón del marcador |
@@ -63,7 +62,7 @@ Una temporada tiene seis pruebas que mezclan carreras y rallies, con lluvia, noc
 - **Puntos**: 10 / 6 / 4 / 2. **Premios**: $1.500 / $900 / $550 / $300. Ganar la temporada da un bonus de $3.000.
 - **Garaje**: los 31 coches campeones del mundo (ver *Coches*). Empiezas con el Fiat 131 Abarth y $1.200; los precios van de $600 por un clásico a $9.400 por un Rally1. Los rivales cambian de coche cada temporada: clásicos de los 70, luego Grupo A, WRC y, al final, Rally1.
 
-- **Mejoras** por coche, con 4 niveles cada una ($500, $900, $1.500 y $2.400): motor, neumáticos, suspensión, nitro y blindaje.
+- **Mejoras** por coche, con 4 niveles cada una ($500, $900, $1.500 y $2.400): motor, neumáticos, suspensión y blindaje.
 - **Daños**: los golpes contra obstáculos y coches, y los aterrizajes duros, quitan velocidad punta, desvían la dirección y hacen que el coche eche humo. En el campeonato se arrastran de una prueba a otra hasta que pagas el taller ($12 por punto).
 - Cada temporada nueva, los rivales llevan más mejoras. El progreso se guarda en el navegador.
 
@@ -82,7 +81,7 @@ Todo el audio se genera en el navegador con Web Audio, sin archivos:
 - **Motor** con caja de seis marchas: sube de vueltas, cambia de marcha con un chasquido, petardea al soltar el gas y se revoluciona en el aire, al patinar o con el freno de mano. Durante la cuenta atrás puedes acelerar en parado.
 - **Rodadura** distinta en asfalto, grava, nieve, barro, agua, hierba y arena, más un chirrido de neumáticos al derrapar sobre asfalto y viento con la velocidad.
 - **Rivales** con su propio motor, que suena según la distancia y a izquierda o derecha.
-- **Efectos**: golpes, conos, saltos y aterrizajes, nitro, latas, salpicaduras, cuenta atrás, parciales, vueltas, meta y récord.
+- **Efectos**: golpes, conos, saltos y aterrizajes, salpicaduras, cuenta atrás, parciales, vueltas, meta y récord.
 - **Lluvia y truenos**, y **música** sintetizada en los menús (botón *Música*).
 - **Copiloto por voz**: canta las notas en español (por ejemplo «izquierda tres y derecha cuatro larga») con la voz del sistema. Si el navegador no tiene voz en español, no suena.
 
@@ -90,7 +89,7 @@ Todo el audio se genera en el navegador con Web Audio, sin archivos:
 
 ### Vista y conducción
 
-El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pacas, conos, latas, farolas, rampas, arcos de salida, control y meta, y puentes tienen volumen y se ordenan por profundidad con los coches. Los árboles que tapan tu coche se vuelven transparentes. La física sigue siendo 2D; solo cambia cómo se dibuja.
+El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pacas, conos, farolas, arcos de salida, control y meta, y puentes tienen volumen y se ordenan por profundidad con los coches. Los árboles que tapan tu coche se vuelven transparentes. La física sigue siendo 2D; solo cambia cómo se dibuja.
 
 La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia), el coche gira más mientras va cruzado y apenas pierde velocidad. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `keep`, `yaw`) dentro de `js/config.js`.
 
@@ -117,7 +116,7 @@ Las prestaciones salen de la época (los clásicos son de propulsión y más len
 
 - **Trazado**: pulsa fuera de la pista para añadir un punto al final y sobre la pista para insertar uno en medio. Arrastra los puntos para moverlos.
 - Al seleccionar un punto puedes elegir la **superficie** (asfalto, tierra, nieve) y el **ancho** del tramo que empieza en él.
-- **Objetos**: barro, agua, rampa, nitro, árbol, roca, paja y cono. Arrastra cualquier objeto para moverlo.
+- **Objetos**: barro, agua, salto, árbol, roca, paja y cono. El salto es un cambio de rasante natural que se centra solo en la pista y la cruza de lado a lado; ponlo en una recta. Arrastra cualquier objeto para moverlo.
 - **Tipo**: circuito cerrado con vueltas, o tramo de salida a meta.
 - **Entorno**: pradera, desierto, montaña nevada, selva, sabana o tierra roja. Decide qué hay fuera de la pista y qué árboles y rocas lo decoran.
 - *Probar* lo carga en el juego, *Guardar* lo guarda en el navegador y *Exportar* da un texto JSON para compartir.
@@ -129,12 +128,12 @@ Las prestaciones salen de la época (los clásicos son de propulsión y más len
 {
   "name": "Mi circuito", "type": "circuito", "laps": 3, "theme": "pradera",
   "pts":     [{ "x": 400, "y": 1250, "s": "asfalto", "w": 100 }],
-  "objs":    [{ "k": "rampa", "x": 1500, "y": 990, "a": 0.05 }, { "k": "nitro", "x": 600, "y": 400 }],
+  "objs":    [{ "k": "rampa", "x": 1500, "y": 990 }, { "k": "arbol", "x": 600, "y": 400 }],
   "patches": [{ "k": "barro", "x": 1250, "y": 900, "r": 40 }]
 }
 ```
 
-El mundo mide 2400 × 1500 px. `type` es `circuito` o `tramo`. `s` puede ser `asfalto`, `tierra` o `nieve`, y `w` es el ancho en px (60–140). En las rampas, `a` es el ángulo en radianes; si falta, se orienta según la pista.
+El mundo mide 3600 × 2400 px (los circuitos guardados con la versión anterior, de 2400 × 1500, siguen valiendo). `type` es `circuito` o `tramo`. `s` puede ser `asfalto`, `tierra` o `nieve`, y `w` es el ancho en px (60–140). `rampa` es un salto natural: se coloca en el punto de la pista más cercano y se orienta solo según la marcha.
 
 ## Estructura
 
@@ -145,7 +144,7 @@ js/config.js        superficies, entornos, objetos y física (ajusta aquí el ma
 js/tracks.js        circuitos incluidos, temporada y tramos de la recreativa
 js/track.js         geometría del trazado, notas del copiloto y dibujo de la pista
 js/car.js           coche de rally: sprite, decoraciones, suciedad y montaje por capas en isométrico
-js/iso.js           objetos del escenario en isométrico: árboles, rocas, rampas, arcos, puentes…
+js/iso.js           objetos del escenario en isométrico: árboles, rocas, arcos, puentes…
 js/game.js          simulación, IA, daños, lluvia, noche, puentes, recreativa y HUD
 js/career.js        campeonato: dinero, garaje, mejoras y puntos
 js/audio.js         sonido sintetizado, música y voz del copiloto
@@ -160,6 +159,6 @@ Para depurar desde la consola del navegador: `__pyb.game.cars`, `__pyb.game.trac
 
 - El trazado es una curva Catmull-Rom que pasa por los puntos y se muestrea cada 8 px. Cada muestra guarda la posición, la normal, el ancho, la superficie y cuánto gira la pista en los siguientes ~100 px. De ahí salen las notas del copiloto y la velocidad de paso de la IA.
 - La física funciona a paso fijo de 1/120 s. Cada superficie tiene su agarre lateral, su velocidad punta y su aceleración. El freno de mano reduce el agarre para derrapar.
-- El suelo de la pista (firme, arcén, manchas, sombras) se dibuja una sola vez en un canvas de 2400 × 1500 visto desde arriba, y en cada fotograma se copia la parte visible con la transformación isométrica. Lo que tiene altura se dibuja aparte, ordenado por `x + y`.
+- El suelo de la pista (firme, arcén, manchas, sombras) se dibuja una sola vez en un canvas de 3600 × 2400 visto desde arriba, y en cada fotograma se copia la parte visible con la transformación isométrica. Lo que tiene altura se dibuja aparte, ordenado por `x + y`.
 - En la recreativa, el tiempo que da cada control sale de simular a un piloto de referencia con tu coche por el mismo tramo y multiplicarlo por un margen (`slack` en `ARCADE_STAGES`) que se reduce en cada tramo.
 - Los récords, los fantasmas y los circuitos guardados se quedan en el `localStorage` del navegador.

@@ -60,7 +60,6 @@ export const OBJ = {
   arbusto: { r: 0,  solid: false },
   cono:    { r: 5 },
   rampa:   {},
-  nitro:   {},
 };
 
 export const WIDTHS = { estrecho: 72, normal: 92, ancho: 120 };
@@ -203,7 +202,6 @@ export const UPGRADES = {
   motor:      { label: 'Motor',      desc: '+3 % de velocidad punta y +6 % de aceleración por nivel' },
   neumaticos: { label: 'Neumáticos', desc: '+6 % de agarre por nivel' },
   suspension: { label: 'Suspensión', desc: 'Pierde menos fuera de pista y aterriza más suave' },
-  nitro:      { label: 'Nitro',      desc: 'Una carga más de capacidad por nivel' },
   blindaje:   { label: 'Blindaje',   desc: '−15 % de daños por nivel' },
 };
 export const UP_PRICES = [500, 900, 1500, 2400];   // coste de los niveles 1 a 4
@@ -260,8 +258,6 @@ export function carSpec(id, up = {}) {
     land: 1 - 0.15 * l('suspension'),
     mass: M.mass,
     armor: M.armor * (1 + 0.15 * l('blindaje')),
-    nitroCap: 3 + l('nitro'),
-    nitroStart: 2 + Math.ceil(l('nitro') / 2),
     r: M.r,
   };
 }

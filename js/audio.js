@@ -1,5 +1,5 @@
 // Sonido sintetizado con Web Audio (sin archivos): motor con caja de cambios, rodadura
-// según superficie, derrapes, golpes, nitro, avisos de carrera y copiloto por voz.
+// según superficie, derrapes, golpes, avisos de carrera y copiloto por voz.
 import { clamp } from './util.js';
 
 const GEARS = [0, 0.16, 0.32, 0.5, 0.7, 0.92, 9];   // fracción de velocidad punta por marcha
@@ -224,9 +224,6 @@ export function createAudio() {
         if (v > 0.45) burst(0.09, 'bandpass', 1600, 0.25 * v, 0.01, 5);
         break;
       case 'cone': tone(1700, 0.035, 'square', 0.08 * v); burst(0.06, 'highpass', 3000, 0.14 * v); break;
-      case 'nitro':
-        burst(1.3, 'bandpass', 300, 0.32 * v, 0, 2.2, 3800); tone(180, 1.0, 'sawtooth', 0.05 * v, 0, 420);
-        break;
       case 'pickup': tone(1175, 0.08, 'sine', 0.24); tone(1760, 0.2, 'sine', 0.24, 0.07); break;
       case 'land': burst(0.22, 'lowpass', 260, 0.6 * v); tone(62, 0.22, 'sine', 0.55 * v, 0, 34); break;
       case 'splash': burst(0.5, 'bandpass', 1500, 0.45 * v, 0, 0.8, 500); break;
@@ -292,14 +289,13 @@ export function createAudio() {
     let target = v < 0.02 && !m.thr ? 0.14 : rpmFor(v, gear);
     if (st.count && m.thr) target = 0.78;                       // acelerar en parado en la cuenta atrás
     if (m.thr && (m.air || m.slide > 70 || m.hb)) target = Math.min(1.05, target + 0.22); // patina o vuela
-    if (m.boost) target = Math.min(1.08, target + 0.08);
     rpm += (target - rpm) * Math.min(1, dt * (target > rpm ? 9 : 6));
     if (lastThr && !m.thr && rpm > 0.62 && !st.count) { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) pop(0.05 + i * 0.09 + Math.random() * 0.05, 0.22); }
     lastThr = m.thr;
     const f0 = 30 + rpm * 200;
     setP(eng.o1.frequency, f0, 0.02); setP(eng.o2.frequency, f0 * 2.012, 0.02);
     setP(eng.o3.frequency, f0 * 0.5, 0.02); setP(eng.lfo.frequency, f0 * 0.5, 0.02);
-    setP(eng.lp.frequency, 450 + rpm * 2400 + (m.thr ? 900 : 0) + (m.boost ? 800 : 0), 0.03);
+    setP(eng.lp.frequency, 450 + rpm * 2400 + (m.thr ? 900 : 0), 0.03);
     setP(eng.out.gain, 0.1 + (m.thr ? 0.16 : 0.03) + rpm * 0.08, 0.04);
 
     // rodadura según superficie

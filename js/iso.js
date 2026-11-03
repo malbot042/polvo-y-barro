@@ -1,5 +1,5 @@
 // Objetos del escenario en isométrico: árboles, rocas, pacas y cactus como figuras
-// pre-dibujadas (billboards), y conos, latas, rampas, farolas, arcos de control y
+// pre-dibujadas (billboards), y conos, farolas, arcos de control y
 // puentes dibujados con volumen en cada fotograma. Todo se ordena por profundidad en game.js.
 import { rng, shade, ISO_C, ISO_Z } from './util.js';
 import { SURF, THEME } from './config.js';
@@ -137,19 +137,6 @@ export function drawConeIso(c, V, k) {
   c.fillStyle = '#f4f4f2'; poly(c, [[-2.6, -4.5], [2.6, -4.5], [1.9, -7], [-1.9, -7]]);
 }
 
-export function drawNitroIso(c, V, p, time) {
-  const b = 2 + Math.sin((time || 0) / 260) * 1.5;
-  const x = V.px(p.x, p.y), y = V.py(p.x, p.y), Z = V.Z;
-  c.setTransform(Z, 0, 0, Z, x, y);
-  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, 0, 6, 3, 0, 0, 7); c.fill();
-  c.translate(0, -b);
-  c.fillStyle = '#c99a00'; c.beginPath(); c.roundRect(-5, -15, 10, 15, 2.5); c.fill();
-  c.fillStyle = '#ffd23f'; c.beginPath(); c.roundRect(-5, -15, 7, 15, 2.5); c.fill();
-  c.fillStyle = '#ffe680'; c.beginPath(); c.ellipse(0, -15, 5, 2.2, 0, 0, 7); c.fill();
-  c.fillStyle = '#1d2630'; c.font = 'italic 800 9px Saira, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('N', 0, -7);
-}
-
 export function drawLampIso(c, V, x, y) {
   const sx = V.px(x, y), sy = V.py(x, y), Z = V.Z;
   c.setTransform(Z, 0, 0, Z, sx, sy);
@@ -159,30 +146,6 @@ export function drawLampIso(c, V, x, y) {
   c.fillStyle = '#f4e9c0'; c.fillRect(-3, -35.4, 6, 1);
 }
 export const LAMP_H = 35;
-
-// Rampa de salto en cuña: sube de 0 a H hacia el labio (dirección r.a)
-export function drawRampIso(c, V, r) {
-  const L = 34, W = 60, H = 8, ca = Math.cos(r.a), sa = Math.sin(r.a);
-  const P = (u, v, z) => { const x = r.x + u * ca - v * sa, y = r.y + u * sa + v * ca; return [V.px(x, y), V.py(x, y, z)]; };
-  c.setTransform(1, 0, 0, 1, 0, 0);
-  if (sa - ca > 0) { c.fillStyle = '#5b4b39'; poly(c, [P(-L / 2, -W / 2, 0), P(L / 2, -W / 2, 0), P(L / 2, -W / 2, H)]); }
-  if (ca - sa > 0) { c.fillStyle = '#5b4b39'; poly(c, [P(-L / 2, W / 2, 0), P(L / 2, W / 2, 0), P(L / 2, W / 2, H)]); }
-  if (ca + sa > 0) {
-    for (let v = -W / 2, k = 0; v < W / 2; v += 10, k++) {
-      c.fillStyle = k % 2 ? '#1b1b1b' : '#f2c230';
-      poly(c, [P(L / 2, v, 0), P(L / 2, v + 10, 0), P(L / 2, v + 10, H), P(L / 2, v, H)]);
-    }
-  }
-  c.fillStyle = '#c2a983'; poly(c, [P(-L / 2, -W / 2, 0), P(L / 2, -W / 2, H), P(L / 2, W / 2, H), P(-L / 2, W / 2, 0)]);
-  c.strokeStyle = 'rgba(60,45,30,.45)'; c.lineWidth = 1.2 * V.Z;
-  c.beginPath();
-  for (let u = -L / 2 + 6; u < L / 2 - 2; u += 6) { const z = ((u + L / 2) / L) * H; c.moveTo(...P(u, -W / 2, z)); c.lineTo(...P(u, W / 2, z)); }
-  c.stroke();
-  for (let v = -W / 2, k = 0; v < W / 2; v += 10, k++) {
-    c.fillStyle = k % 2 ? '#1b1b1b' : '#f2c230';
-    poly(c, [P(L / 2 - 4, v, H * 0.88), P(L / 2, v, H), P(L / 2, v + 10, H), P(L / 2 - 4, v + 10, H * 0.88)]);
-  }
-}
 
 // Arco de salida, control o meta sobre la pista
 export function drawArchIso(c, V, s, label, col) {
