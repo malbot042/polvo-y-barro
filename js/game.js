@@ -3,7 +3,7 @@
 // simulados de los rivales en los rallies del campeonato y el modo recreativa
 // (cuenta atrás, controles que dan tiempo y puntos por derrapar).
 import { WW, WH, SP, M_PER_PX, ISO_C, clamp, wrapA, store, fmtTime, isoView } from './util.js';
-import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, NIGHT, DEFAULT_CAR, carSpec } from './config.js';
+import { SURF, PHYS, VERGE, CONDITIONS, ARCADE, CRT, NIGHT, DEFAULT_CAR, carSpec, torque } from './config.js';
 import { buildTrack, nearestGlobal, idxAdd, trackKey } from './track.js';
 import { drawCarIso, drawCarShadowIso, carFront, carWheels, carLivery, GHOST_LIVERY } from './car.js';
 import { drawDecorIso, decorTop, hasBillboard, drawConeIso, drawLampIso, LAMP_H, drawArchIso, bridgePieces, drawBridgePiece } from './iso.js';
@@ -59,6 +59,7 @@ export function createGame(cv, hooks) {
   const ghostCv = document.createElement('canvas'), gctx = ghostCv.getContext('2d');
   // efecto de monitor: patrón de barras y viñeta, rehechos solo al cambiar de tamaño o de densidad de píxeles
   let crtOn = true, crtPat = null, crtKey = '';
+  let autoBox = true;   // cambio automático (o manual) para el jugador
   const vig = document.createElement('canvas');
   const cam = { x: WW / 2, y: WH / 2 };
   let dpr = 1;
@@ -67,6 +68,12 @@ export function createGame(cv, hooks) {
 
   const player = () => cars.find((c) => c.me);
   const sfx = (name, d) => { if (!sim && hooks.sfx) hooks.sfx(name, d || {}); };
+  function shiftTo(c, g) {
+    if (g < 1 || g > PHYS.gears.length || g === c.gear) return;
+    const up = g > c.gear;
+    c.gear = g; c.shiftT = up ? PHYS.shiftT : PHYS.shiftT * 0.6;
+    if (c.me) sfx('gear', { up, gear: g, turbo: c.spec.era !== 'clasico' });
+  }
   function atten(c) {
     if (c.me) return 1;
     const me = player();
@@ -106,7 +113,7 @@ export function createGame(cv, hooks) {
     return {
       ...d, spec, model: spec.model, x: s.x + s.nx * lane * s.w, y: s.y + s.ny * lane * s.w, a: s.h, vx: 0, vy: 0, fs: 0, ls: 0,
       idx, nd: 0, lv: 0, p: 0, lap: 0, cpNext: 0, splits: [], finished: false, ft: 0, order: 0,
-      gear: 'L', air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
+      gear: 1, rpm: 0, shiftT: 0, odo: 0, air: 0, airMax: 0, airH: 0, h: 0, steer: 0, brk: 0, sk: 'tierra',
       dirt: { barro: 0, polvo: 0, nieve: 0 }, dmg: d.dmg || 0, pull: 0,
       lane, laneT: 1 + Math.random(), stuck: 0, rev: 0, rl: null, rr: null, thr: 0, hb: 0,
     };
@@ -324,20 +331,30 @@ export function createGame(cv, hooks) {
       // superficie corregida por el coche: los coches de tierra pierden menos fuera de pista; la lluvia quita agarre
       let maxS = sf.max, accS = sf.acc, gripS = sf.grip;
       if (OFF_LIKE[sk]) { maxS = 1 - (1 - maxS) / spec.off; accS = 1 - (1 - accS) / spec.off; gripS *= Math.sqrt(spec.off); }
-      if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') gripS *= COND.grip;
-      // caja de dos marchas: el jugador cambia con Shift; la IA cambia sola en el punto ideal
-      const maxCar = PHYS.max * c.skill * maxS * spec.max;
-      if (!c.me) c.gear = fs > maxCar * PHYS.gearL.max * 0.92 ? 'H' : 'L';
-      const GH = PHYS.gearH;
-      const gAcc = c.gear === 'L' ? PHYS.gearL.acc : clamp(GH.lowAcc + (1 - GH.lowAcc) * (fs / (maxCar * GH.full)), GH.lowAcc, 1);
-      const acc = PHYS.acc * accS * spec.acc * gAcc;
-      if (inp.t) fs += acc * dt;
+      if (sk === 'asfalto' || sk === 'tierra' || sk === 'verge') { gripS *= COND.grip; accS *= COND.acc; maxS *= COND.max; }
+      // caja de cinco marchas: la IA y el automático cambian solos; en manual cambia el jugador.
+      // Las vueltas salen de la velocidad y la marcha; el empuje, de la curva de par.
+      const top = PHYS.max * c.skill * spec.max, G = PHYS.gears;
+      if (c.shiftT > 0) c.shiftT -= dt;
+      else if (!c.me || autoBox) {
+        if (c.gear < G.length && fs > G[c.gear - 1] * top * PHYS.autoUp && inp.t) shiftTo(c, c.gear + 1);
+        else if (c.gear > 1 && fs < G[c.gear - 2] * top * PHYS.autoDown) shiftTo(c, c.gear - 1);
+      }
+      const gTop = G[c.gear - 1] * top;
+      c.rpm = clamp(Math.abs(fs) / gTop, 0, 1.05);
+      // en primera el embrague patina y deja salir con el motor alto
+      const tq = torque(Math.max(c.rpm, c.gear === 1 ? 0.5 : 0)) * PHYS.gearAcc[c.gear - 1];
+      const acc = PHYS.acc * accS * spec.acc * tq;
+      if (inp.t && c.shiftT <= 0) fs += acc * dt;
+      if (fs > 0) fs -= PHYS.acc * PHYS.drag * (fs / top) ** 2 * dt;   // aire: los últimos km/h cuestan
       if (inp.b) fs -= (fs > 5 ? PHYS.brake * (COND.rain ? 0.85 : 1) : PHYS.reverse) * dt;
       if (!inp.t && !inp.b) fs *= 1 - 0.7 * dt;
       let rb = 1;
       const me = player();
       if (!c.me && me && mode === 'carrera') { const gap = score(c) - score(me); rb = gap > T.n * 0.2 ? 0.9 : gap < -T.n * 0.2 ? 1.07 : 1; }
-      const max = PHYS.max * c.skill * rb * maxS * spec.max * (1 - c.dmg * 0.25) * (c.gear === 'L' ? PHYS.gearL.max : 1);
+      // punta según terreno, condiciones y daños; en las marchas cortas manda el corte de inyección
+      let max = PHYS.max * c.skill * rb * maxS * spec.max * (1 - c.dmg * 0.25);
+      if (c.gear < G.length) max = Math.min(max, gTop);
       if (fs > max) fs = Math.max(max, fs - 520 * dt);
       if (fs < -PHYS.revMax) fs = -PHYS.revMax;
       let grip = gripS * spec.grip;
@@ -355,6 +372,7 @@ export function createGame(cv, hooks) {
       c.vx = fx * fs + rx * ls; c.vy = fy * fs + ry * ls;
       c.x += c.vx * dt; c.y += c.vy * dt;
       c.fs = fs; c.ls = ls;
+      c.odo += Math.abs(fs) * dt * M_PER_PX;
       if (!c.lv) {
         for (const r of T.ramps) {
           const ca = Math.cos(r.a), sa = Math.sin(r.a), dx = c.x - r.x, dy = c.y - r.y;
@@ -577,6 +595,8 @@ export function createGame(cv, hooks) {
     hooks.onResults({ mode, track: def.name, cond: cfg.cond, event: cfg.event, rows, rally, dmg: me.dmg, field: cfg.field });
   }
 
+  const gearLabel = (c) => (c.fs < -5 ? 'R' : String(c.gear));
+
   function hud() {
     const me = player();
     if (!me) return null;
@@ -591,7 +611,7 @@ export function createGame(cv, hooks) {
       aL, a, bL, b,
       time: fmtTime(me.finished ? me.ft : raceT),
       speed: Math.round(Math.hypot(me.vx, me.vy) * M_PER_PX * 3.6),
-      gear: me.gear,
+      gear: gearLabel(me),
       dmg: Math.round(me.dmg * 100),
     };
   }
@@ -681,6 +701,80 @@ export function createGame(cv, hooks) {
       ctx.beginPath(); ctx.arc(mx(c.x, c.y), my(c.x, c.y), (c.me ? 4.2 : 3.2) * u, 0, 7); ctx.fill();
       if (c.me) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * u; ctx.stroke(); }
     }
+  }
+
+  // Cuadro: velocímetro de aguja con cuentavueltas en la corona, cuentakilómetros de rodillos y marcha
+  function drawGauge(u) {
+    const me = player();
+    const R = 58 * u, pad = 12 * u, cx = cv.width - pad - R, cy = cv.height - pad - R;
+    const kmh = Math.hypot(me.vx, me.vy) * M_PER_PX * 3.6;
+    const topK = PHYS.max * me.spec.max * M_PER_PX * 3.6;
+    const full = Math.ceil((topK + 10) / 20) * 20;
+    const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5, ang = (v) => a0 + sweep * clamp(v, 0, 1);
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,16,22,.78)'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+    ctx.lineWidth = 1.5 * u; ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.stroke();
+    // corona: vueltas del motor, de verde a rojo en el corte
+    const rr = R - 6 * u, rpm = clamp(me.rpm || 0, 0, 1);
+    ctx.lineCap = 'butt'; ctx.lineWidth = 5 * u;
+    ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.arc(cx, cy, rr, a0, a0 + sweep); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,70,60,.35)'; ctx.beginPath(); ctx.arc(cx, cy, rr, ang(0.9), a0 + sweep); ctx.stroke();
+    if (rpm > 0.01) {
+      ctx.strokeStyle = rpm > 0.9 ? '#ff5a4a' : rpm > 0.72 ? '#ffd23f' : '#4cd07d';
+      ctx.beginPath(); ctx.arc(cx, cy, rr, a0, ang(rpm)); ctx.stroke();
+    }
+    // escala de km/h
+    ctx.strokeStyle = '#ffffff'; ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.font = `600 ${8.5 * u}px Archivo, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let v = 0; v <= full; v += 10) {
+      const a = ang(v / full), big = v % 40 === 0, ca = Math.cos(a), sa = Math.sin(a);
+      const r1 = R - 11 * u, r2 = r1 - (big ? 7 : 4) * u;
+      ctx.lineWidth = (big ? 1.6 : 1) * u; ctx.globalAlpha = big ? 0.95 : 0.55;
+      ctx.beginPath(); ctx.moveTo(cx + ca * r1, cy + sa * r1); ctx.lineTo(cx + ca * r2, cy + sa * r2); ctx.stroke();
+      if (big) ctx.fillText(String(v), cx + ca * (r2 - 8 * u), cy + sa * (r2 - 8 * u));
+    }
+    ctx.globalAlpha = 1;
+    // lectura digital y cuentakilómetros (km del recorrido, con rodillo en la última cifra)
+    setFont(17 * u); ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(Math.round(kmh)), cx, cy + R * 0.42);
+    ctx.font = `600 ${7.5 * u}px Archivo, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.fillText('km/h', cx, cy + R * 0.56);
+    const cells = 5, cw = 7.5 * u, chh = 11 * u, ox = cx - (cells * cw) / 2, oy = cy + R * 0.66;
+    const val = me.odo / 10;   // centésimas de km
+    ctx.beginPath(); ctx.rect(ox, oy, cells * cw, chh); ctx.save(); ctx.clip();
+    ctx.fillStyle = '#05080b'; ctx.fillRect(ox, oy, cells * cw, chh);
+    ctx.fillStyle = '#e8e2d0'; ctx.fillRect(ox + 3 * cw, oy, 2 * cw, chh);
+    ctx.font = `700 ${9 * u}px "Courier New", monospace`; ctx.textBaseline = 'middle';
+    for (let k = 0; k < cells; k++) {
+      const place = 10 ** (cells - 1 - k), d = Math.floor(val / place) % 10;
+      // la última cifra rueda; las demás saltan cuando la de su derecha pasa por el 9
+      const roll = k === cells - 1 ? val % 1 : (Math.floor(val) % place === place - 1 ? val % 1 : 0);
+      const x = ox + k * cw + cw / 2;
+      ctx.fillStyle = k >= 3 ? '#111' : '#f2efe6';
+      ctx.fillText(String(d), x, oy + chh / 2 - roll * chh);
+      ctx.fillText(String((d + 1) % 10), x, oy + chh * 1.5 - roll * chh);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(ox + 3 * cw - 0.6 * u, oy + chh - 2.5 * u, 1.2 * u, 1.2 * u);   // coma decimal
+    // aguja
+    const na = ang(kmh / full), nl = R - 13 * u;
+    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 2.4 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - Math.cos(na) * 8 * u, cy - Math.sin(na) * 8 * u); ctx.lineTo(cx + Math.cos(na) * nl, cy + Math.sin(na) * nl); ctx.stroke();
+    ctx.fillStyle = '#2a3138'; ctx.beginPath(); ctx.arc(cx, cy, 5 * u, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 1.4 * u; ctx.stroke();
+    // marcha, a la izquierda; en manual parpadea en rojo al llegar al corte
+    const gw = 40 * u, gh = 52 * u, gx = cx - R - gw - 6 * u, gy = cy + R - gh;
+    ctx.fillStyle = 'rgba(10,16,22,.78)'; ctx.beginPath(); ctx.roundRect(gx, gy, gw, gh, 8 * u); ctx.fill();
+    const cut = !autoBox && me.gear < PHYS.gears.length && rpm > 0.93 && me.thr;
+    if (cut && Math.floor(performance.now() / 90) % 2) { ctx.fillStyle = 'rgba(255,70,60,.55)'; ctx.fill(); }
+    ctx.textAlign = 'center';
+    ctx.font = `600 ${7.5 * u}px Archivo, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.fillText('MARCHA', gx + gw / 2, gy + 11 * u);
+    setFont(26 * u); ctx.fillStyle = me.shiftT > 0 ? 'rgba(255,255,255,.45)' : '#ffd23f';
+    ctx.fillText(gearLabel(me), gx + gw / 2, gy + 37 * u);
+    ctx.font = `700 ${7.5 * u}px Archivo, sans-serif`; ctx.fillStyle = autoBox ? 'rgba(255,255,255,.6)' : '#4cd07d';
+    ctx.fillText(autoBox ? 'AUTO' : 'MANUAL', gx + gw / 2, gy + 47 * u);
+    ctx.restore();
   }
 
   // Marcador de recreativa: segundos que quedan, puntos y derrape en curso
@@ -914,6 +1008,7 @@ export function createGame(cv, hooks) {
     if (me && state !== 'idle' && !me.finished && !me.timeUp) drawNotes(u);
     if (cars.length) drawMini(u);
     if (arc) drawArcade(u, time);
+    if (me && state !== 'idle') drawGauge(u);
     if (flash) { ctx.globalAlpha = Math.min(1, flash.t * 2); bigText(flash.txt, 100 * u, 38 * u, flash.col); ctx.globalAlpha = 1; }
     if (state === 'count') bigText(String(Math.ceil(cd)), ch / 2, ch * 0.24, '#ffd23f');
     else if (state === 'race' && raceT < 0.8) bigText('¡YA!', ch / 2, ch * 0.24, '#ffd23f');
@@ -978,13 +1073,14 @@ export function createGame(cv, hooks) {
     setCRT(on) { crtOn = !!on; },
     info,
     get state() { return state; },
-    // Cambia entre marcha corta (L) y larga (H); vale también en la cuenta atrás
-    shift() {
+    // Cambio manual: d = +1 sube, -1 baja; vale también en la cuenta atrás
+    shift(d) {
       const me = player();
-      if (!me || me.finished || me.timeUp || (state !== 'race' && state !== 'count')) return;
-      me.gear = me.gear === 'L' ? 'H' : 'L';
-      sfx('gear', { up: me.gear === 'H' });
+      if (autoBox || !me || me.finished || me.timeUp || (state !== 'race' && state !== 'count')) return;
+      shiftTo(me, me.gear + d);
     },
+    setGearbox(auto) { autoBox = !!auto; },
+    get autoBox() { return autoBox; },
     get arcade() { return arc; },
     get cars() { return cars; },     // para depurar desde la consola
     get track() { return T; },
@@ -997,10 +1093,10 @@ export function createGame(cv, hooks) {
         rain: COND.rain,
         me: {
           sp: Math.hypot(me.vx, me.vy), thr: state === 'count' ? keys.t : me.thr, brk: me.brk, hb: me.hb,
-          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, gear: me.gear, top: me.spec.max * PHYS.max, offKind: T.def.theme, dmg: me.dmg,
+          sk: me.sk, slide: Math.abs(me.ls || 0), air: me.air > 0, gear: me.gear, rpm: me.rpm, shifting: me.shiftT > 0, auto: autoBox, turbo: me.spec.era !== 'clasico', top: me.spec.max * PHYS.max, offKind: T.def.theme, dmg: me.dmg,
         },
         rivals: cars.filter((c) => !c.me).map((c) => ({
-          dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr,
+          dist: Math.hypot(c.x - me.x, c.y - me.y), pan: clamp((c.x - me.x) / 400, -1, 1), sp: Math.hypot(c.vx, c.vy), thr: c.thr, rpm: c.rpm,
         })),
       };
     },

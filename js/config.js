@@ -77,11 +77,16 @@ export const PHYS = {
   drift: 0.5,    // agarre que se pierde girando a fondo con gas a velocidad (derrape de potencia)
   counter: 1.9,  // multiplicador de agarre al contravolantear: el coche se endereza enseguida
   yaw: 0.3,      // giro extra (máx.) mientras el coche va cruzado
-  // caja de dos marchas (Shift): L empuja fuerte pero se queda corta; H llega a la punta pero
-  // acelera poco desde abajo (acc va de lowAcc a 1 hasta `full` de la velocidad punta)
-  gearL: { max: 0.55, acc: 1.2 },
-  gearH: { lowAcc: 0.22, full: 0.75 },
+  // caja de cinco marchas: cada una llega hasta ratio × velocidad punta del coche (luego corta
+  // la inyección) y las cortas empujan más. El par depende de las vueltas (rpm de 0 a 1).
+  gears: [0.3, 0.47, 0.64, 0.82, 1],
+  gearAcc: [1.3, 1.1, 0.92, 0.78, 0.66],
+  drag: 0.45,               // resistencia del aire (× acc) a la velocidad punta; crece con el cuadrado
+  shiftT: 0.16,             // segundos sin empuje mientras se cambia
+  autoUp: 0.95, autoDown: 0.72,   // automático: sube al llegar a esas rpm; baja si cabe en la inferior por debajo de esas
 };
+// Curva de par: flojo abajo, máximo hacia el 85 % de vueltas y algo menos en el corte
+export const torque = (r) => 0.35 + 1.3 * r - 0.75 * r * r;
 
 // ---------- Coches, mejoras y condiciones ----------
 
@@ -211,10 +216,11 @@ export const UP_PRICES = [500, 900, 1500, 2400];   // coste de los niveles 1 a 4
 export const REPAIR_PER_PCT = 12;                  // dólares por cada 1 % de daños
 
 export const CONDITIONS = {
-  seco:           { label: 'Seco, de día',     grip: 1.0, night: false, rain: false },
-  lluvia:         { label: 'Lluvia',           grip: 0.8, night: false, rain: true },
-  noche:          { label: 'Noche',            grip: 1.0, night: true,  rain: false },
-  'lluvia-noche': { label: 'Lluvia de noche',  grip: 0.8, night: true,  rain: true },
+  // grip: agarre en asfalto y tierra; acc/max: empuje y punta (el agua frena y las ruedas patinan)
+  seco:           { label: 'Seco, de día',     grip: 1.0, acc: 1,    max: 1,    night: false, rain: false },
+  lluvia:         { label: 'Lluvia',           grip: 0.8, acc: 0.9,  max: 0.95, night: false, rain: true },
+  noche:          { label: 'Noche',            grip: 1.0, acc: 1,    max: 1,    night: true,  rain: false },
+  'lluvia-noche': { label: 'Lluvia de noche',  grip: 0.8, acc: 0.9,  max: 0.95, night: true,  rain: true },
 };
 
 // Modo recreativa: cuenta atrás, controles que dan tiempo y puntos
@@ -254,6 +260,7 @@ export function carSpec(id, up = {}) {
   const M = CAR_MODELS[id] || CAR_MODELS[DEFAULT_CAR], l = (k) => up[k] || 0;
   return {
     model: CAR_MODELS[id] ? id : DEFAULT_CAR,
+    era: M.era,
     max: M.max * (1 + 0.03 * l('motor')),
     acc: M.acc * (1 + 0.06 * l('motor')),
     grip: M.grip * (1 + 0.06 * l('neumaticos')),

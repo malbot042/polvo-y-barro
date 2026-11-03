@@ -2,7 +2,6 @@
 // según superficie, derrapes, golpes, avisos de carrera y copiloto por voz.
 import { clamp } from './util.js';
 
-const GEARS = [0, 0.16, 0.32, 0.5, 0.7, 0.92, 9];   // fracción de velocidad punta por marcha
 const NUM = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis'];
 
 export function noteText(no) {
@@ -19,7 +18,7 @@ export function createAudio() {
   let rain = null, musicBus = null, seqTimer = null, seqNext = 0, seqStep = 0;
   let noiseBuf = null, gravelBuf = null;
   let eng = null, surf = null, rivals = [];
-  let gear = 1, rpm = 0.15, lastThr = 0, lastT = 0, voice = null;
+  let rpm = 0.15, load = 0, lastThr = 0, lastT = 0, voice = null;
 
   function gain(v) { const g = ctx.createGain(); g.gain.value = v; return g; }
   function setP(p, v, tc = 0.03) { p.setTargetAtTime(v, ctx.currentTime, tc); }
@@ -51,20 +50,31 @@ export function createAudio() {
     s.start(0, Math.random() * buf.duration * 0.9); return s;
   }
 
+  // Motor de cuatro cilindros: diente de sierra a la frecuencia de encendido (con otro algo
+  // desafinado), saturado más o menos según la carga; ruido de escape pulsado al mismo ritmo;
+  // turbo que silba y engranajes de dientes rectos que aúllan con las vueltas.
   function buildEngine() {
-    const out = gain(0), shaper = ctx.createWaveShaper(), lp = ctx.createBiquadFilter(), am = gain(0.65);
-    shaper.curve = distCurve(3.2);
-    lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 2.2;
-    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator(), lfo = ctx.createOscillator();
-    o1.type = 'sawtooth'; o2.type = 'square'; o3.type = 'sine'; lfo.type = 'square';
-    const g1 = gain(0.5), g2 = gain(0.2), g3 = gain(0.55), gl = gain(0.35);
-    o1.connect(g1).connect(shaper); o2.connect(g2).connect(shaper);
-    shaper.connect(am).connect(lp).connect(out);
-    o3.connect(g3).connect(out);
-    lfo.connect(gl).connect(am.gain);
+    const out = gain(0), drive = gain(0.8), shaper = ctx.createWaveShaper(), lp = ctx.createBiquadFilter(), body = ctx.createBiquadFilter();
+    shaper.curve = distCurve(4);
+    lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 1.6;
+    body.type = 'peaking'; body.frequency.value = 160; body.Q.value = 1.1; body.gain.value = 6;   // cuerpo del escape
+    const o1 = ctx.createOscillator(), o1b = ctx.createOscillator(), o2 = ctx.createOscillator(), sub = ctx.createOscillator();
+    o1.type = 'sawtooth'; o1b.type = 'sawtooth'; o2.type = 'square'; sub.type = 'sine';
+    o1.connect(gain(0.42)).connect(drive); o1b.connect(gain(0.3)).connect(drive); o2.connect(gain(0.14)).connect(drive);
+    drive.connect(shaper).connect(lp).connect(body).connect(out);
+    sub.connect(gain(0.45)).connect(out);
+    // escape: ruido en banda modulado en amplitud por la frecuencia de encendido
+    const ex = loop(noiseBuf), exf = ctx.createBiquadFilter(), exAm = gain(0.5), exG = gain(0), pulse = ctx.createOscillator(), pg = gain(0.5);
+    exf.type = 'bandpass'; exf.frequency.value = 600; exf.Q.value = 0.9;
+    pulse.type = 'sawtooth'; pulse.connect(pg).connect(exAm.gain);
+    ex.connect(exf).connect(exAm).connect(exG).connect(out);
+    // turbo y caja
+    const tb = ctx.createOscillator(), tbG = gain(0), wh = ctx.createOscillator(), whG = gain(0);
+    tb.type = 'sine'; wh.type = 'triangle';
+    tb.connect(tbG).connect(master); wh.connect(whG).connect(master);
     out.connect(master);
-    [o1, o2, o3, lfo].forEach((o) => o.start());
-    eng = { out, lp, o1, o2, o3, lfo };
+    [o1, o1b, o2, sub, pulse, tb, wh].forEach((o) => o.start());
+    eng = { out, drive, lp, body, o1, o1b, o2, sub, pulse, exf, exG, tb, tbG, wh, whG };
   }
 
   function buildSurface() {
@@ -176,8 +186,8 @@ export function createAudio() {
     return ready;
   }
 
-  function gearFor(v) { let g = 1; while (g < 6 && v >= GEARS[g]) g++; return g; }
-  function rpmFor(v, g) { const lo = GEARS[g - 1], hi = Math.min(GEARS[g], 1.35); return (g === 1 ? 0.18 : 0.42) + (g === 1 ? 0.8 : 0.58) * clamp((v - lo) / (hi - lo), 0, 1); }
+  // vueltas (0–1) → frecuencia de encendido de un cuatro cilindros, de 900 a 8000 rpm
+  const fireHz = (r) => (900 + clamp(r, 0, 1.1) * 7100) / 30;
 
   // ---------- Efectos puntuales ----------
   function tone(freq, dur, type = 'sine', vol = 0.3, when = 0, slideTo = null) {
@@ -238,7 +248,11 @@ export function createAudio() {
       case 'extend': [880, 1175, 1568].forEach((f, i) => tone(f, 0.12, 'square', 0.12, i * 0.07)); break;
       case 'tick': tone(1480, 0.06, 'square', 0.13); break;
       case 'timeup': [523, 415, 330, 262].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.18, 'sawtooth', 0.14, i * 0.2)); break;
-      case 'gear': pop(0, 0.22); burst(0.05, 'bandpass', d.up ? 1800 : 900, 0.14, 0, 2); tone(d.up ? 140 : 110, 0.07, 'square', 0.08); break;
+      case 'gear':   // golpe seco de la palanca y, al subir, petardeo y soplido del turbo
+        burst(0.06, 'lowpass', 500, 0.3, 0, 1.2); tone(d.up ? 95 : 75, 0.06, 'square', 0.1);
+        burst(0.025, 'bandpass', 2400, 0.12, 0.01, 4);
+        if (d.up) { pop(0.02, 0.2); if (d.turbo) burst(0.32, 'highpass', 5200, 0.07, 0.03, 0.8, 2600); }
+        break;
       case 'combo': tone(1319, 0.07, 'triangle', 0.2); tone(1976, 0.16, 'triangle', 0.2, 0.06); break;
       case 'coin': tone(988, 0.08, 'square', 0.16); tone(1319, 0.3, 'square', 0.16, 0.08); break;
       case 'note': speak(noteText(d.no) + (d.next ? ' y ' + noteText(d.next) : '')); break;
@@ -268,7 +282,7 @@ export function createAudio() {
   // ---------- Bucle continuo ----------
   function silence() {
     if (!ready) return;
-    setP(eng.out.gain, 0, 0.08);
+    setP(eng.out.gain, 0, 0.08); setP(eng.tbG.gain, 0, 0.08); setP(eng.whG.gain, 0, 0.08);
     for (const k of ['hiss', 'gravel', 'wind', 'slosh']) setP(surf[k].g.gain, 0, 0.08);
     setP(surf.sloshDepth.gain, 0, 0.08);
     setP(surf.squeal.gain, 0, 0.05);
@@ -283,23 +297,38 @@ export function createAudio() {
     setP(rain.g.gain, st.rain ? 0.09 : 0, 0.3); setP(rain.g2.gain, st.rain ? 0.12 : 0, 0.3);
     const m = st.me, v = m.sp / 300;
 
-    // motor y marchas
-    // caja de dos marchas: en L el motor llega al corte pronto; en H sube despacio
-    const top = m.top ? m.sp / m.top : v;
-    let target;
-    if (m.gear) target = v < 0.02 && !m.thr ? 0.14 : m.gear === 'L' ? 0.2 + 0.85 * clamp(top / 0.55, 0, 1) : 0.16 + 0.84 * clamp(top, 0, 1);
-    else { const g = gearFor(v); if (g > gear && m.thr) { pop(0.01, 0.18); burst(0.03, 'highpass', 2600, 0.08); } gear = g; target = v < 0.02 && !m.thr ? 0.14 : rpmFor(v, gear); }
-    if (m.gear === 'L' && m.thr && top > 0.53) target = 1.02 + Math.sin(t * 70) * 0.04;   // corte de inyección
-    if (st.count && m.thr) target = 0.78;                       // acelerar en parado en la cuenta atrás
-    if (m.thr && (m.air || m.slide > 70 || m.hb)) target = Math.min(1.05, target + 0.22); // patina o vuela
-    rpm += (target - rpm) * Math.min(1, dt * (target > rpm ? 9 : 6));
-    if (lastThr && !m.thr && rpm > 0.62 && !st.count) { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) pop(0.05 + i * 0.09 + Math.random() * 0.05, 0.22); }
+    // motor: las vueltas vienen de la caja del juego; con gas en primera el embrague patina
+    const shifting = m.shifting, onGas = m.thr && !shifting;
+    let target = m.rpm == null ? 0.15 + v * 0.8 : m.rpm;
+    if (m.gear === 1 && m.thr) target = Math.max(target, 0.45);
+    if (v < 0.02 && !m.thr) target = 0.12;
+    if (st.count && m.thr) target = 0.72 + Math.sin(t * 9) * 0.03;           // acelerar en parado en la cuenta atrás
+    if (onGas && (m.air || m.slide > 70 || m.hb)) target = Math.min(1.04, target + 0.18); // patina o vuela
+    target = Math.max(0.12, target);
+    const limiter = onGas && target >= 0.99;
+    if (limiter) target = 0.97 + (Math.sin(t * 95) > 0 ? 0.05 : -0.02);   // corte de inyección
+    rpm += (target - rpm) * Math.min(1, dt * (shifting ? 14 : target > rpm ? 10 : 6));
+    load += ((onGas ? 1 : 0) - load) * Math.min(1, dt * (onGas ? 12 : 7));
+    if (lastThr && !m.thr && rpm > 0.6 && !st.count) {     // petardeo al soltar
+      const n = 1 + (Math.random() * 3 | 0);
+      for (let i = 0; i < n; i++) pop(0.05 + i * 0.09 + Math.random() * 0.05, 0.22);
+      if (m.turbo) burst(0.35, 'highpass', 5000, 0.06, 0.02, 0.8, 2400);
+    }
     lastThr = m.thr;
-    const f0 = 30 + rpm * 200;
-    setP(eng.o1.frequency, f0, 0.02); setP(eng.o2.frequency, f0 * 2.012, 0.02);
-    setP(eng.o3.frequency, f0 * 0.5, 0.02); setP(eng.lfo.frequency, f0 * 0.5, 0.02);
-    setP(eng.lp.frequency, 450 + rpm * 2400 + (m.thr ? 900 : 0), 0.03);
-    setP(eng.out.gain, 0.1 + (m.thr ? 0.16 : 0.03) + rpm * 0.08, 0.04);
+    const f0 = fireHz(rpm), gate = limiter && Math.sin(t * 95) > 0 ? 0.55 : 1;
+    setP(eng.o1.frequency, f0, 0.015); setP(eng.o1b.frequency, f0 * 1.007, 0.015);
+    setP(eng.o2.frequency, f0 * 0.5, 0.015); setP(eng.sub.frequency, f0 * 0.5, 0.015);
+    setP(eng.pulse.frequency, f0, 0.015);
+    setP(eng.drive.gain, 0.45 + load * 0.9, 0.03);
+    setP(eng.lp.frequency, 380 + rpm * 1900 + load * 1300, 0.03);
+    setP(eng.body.frequency, 110 + rpm * 120, 0.05);
+    setP(eng.exf.frequency, 300 + rpm * 1500, 0.03); setP(eng.exG.gain, (0.05 + load * 0.16) * (0.4 + rpm), 0.03);
+    setP(eng.out.gain, (0.09 + load * 0.14 + rpm * 0.07) * gate, 0.02);
+    // turbo: silba con carga y vueltas; caja de dientes rectos: aullido con la velocidad
+    const spool = m.turbo ? load * clamp((rpm - 0.35) / 0.6, 0, 1) : 0;
+    setP(eng.tb.frequency, 2400 + rpm * 4200, 0.05); setP(eng.tbG.gain, spool * spool * 0.025, 0.12);
+    setP(eng.wh.frequency, 250 + rpm * 1150 + (m.gear || 1) * 40, 0.03);
+    setP(eng.whG.gain, clamp(v, 0, 1) * (0.012 + (1 - load) * 0.014), 0.06);
 
     // rodadura según superficie
     const vs = Math.min(1, v * 1.2);
@@ -331,9 +360,9 @@ export function createAudio() {
     rivals.forEach((r, i) => {
       const o = st.rivals[i];
       if (!o) { setP(r.g.gain, 0); return; }
-      const rv = o.sp / 300, tg = rv < 0.02 ? 0.15 : rpmFor(rv, gearFor(rv));
+      const rv = o.sp / 300, tg = rv < 0.02 ? 0.15 : o.rpm != null ? Math.max(0.2, o.rpm) : 0.2 + rv * 0.7;
       r.rpm += (tg - r.rpm) * Math.min(1, dt * 6);
-      const f = 30 + r.rpm * 200;
+      const f = fireHz(r.rpm);
       setP(r.o.frequency, f * (1 + i * 0.013), 0.03); setP(r.o2.frequency, f * 2.01, 0.03);
       setP(r.lp.frequency, 400 + r.rpm * 1500, 0.05);
       const near = clamp(1 - o.dist / 650, 0, 1);

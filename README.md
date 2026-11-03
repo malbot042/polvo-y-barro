@@ -30,7 +30,7 @@ El juego ocupa toda la ventana. Arriba hay un menú que abre ventanas por encima
 | Acelerar | ↑ o W | Gas |
 | Frenar / marcha atrás | ↓ o S | Freno |
 | Freno de mano (derrape) | Espacio | Mano |
-| Cambiar de marcha (L/H) | Shift | L/H |
+| Subir / bajar marcha (cambio manual) | E o X / Q o Z | + / − |
 | Empezar | Enter | Empezar |
 | Silenciar | M | Sonido |
 | Pantalla completa | F (Esc para salir) | botón del marcador |
@@ -79,7 +79,7 @@ Si el trazado se cruza consigo mismo, el segundo paso por el cruce se convierte 
 
 Todo el audio se genera en el navegador con Web Audio, sin archivos:
 
-- **Motor** con caja de seis marchas: sube de vueltas, cambia de marcha con un chasquido, petardea al soltar el gas y se revoluciona en el aire, al patinar o con el freno de mano. Durante la cuenta atrás puedes acelerar en parado.
+- **Motor** de cuatro cilindros sintetizado: las vueltas salen de la caja del juego, suena más ronco y saturado con carga, con ráfagas de escape al ritmo del encendido, corte de inyección al tope, chasquido al cambiar, petardeo al soltar el gas, silbido y soplido del turbo (de los Grupo B en adelante) y el aullido de la caja de dientes rectos. Se revoluciona en el aire, al patinar o con el freno de mano, y en la cuenta atrás puedes acelerar en parado.
 - **Rodadura** distinta en asfalto, grava, nieve, barro, agua, hierba y arena, más un chirrido de neumáticos al derrapar sobre asfalto y viento con la velocidad.
 - **Rivales** con su propio motor, que suena según la distancia y a izquierda o derecha.
 - **Efectos**: golpes, conos, saltos y aterrizajes, salpicaduras, cuenta atrás, parciales, vueltas, meta y récord.
@@ -94,7 +94,7 @@ El mundo se dibuja en isométrico (proyección 2:1): árboles, rocas, cactus, pa
 
 La conducción es arcade: con gas y el volante a fondo a buena velocidad, la trasera se suelta (derrape de potencia) y el coche gira más mientras va cruzado; derrapar nunca acelera el coche. Al contravolantear recupera el agarre enseguida. Los parámetros están en `PHYS` (`drift`, `counter`, `yaw`) dentro de `js/config.js`.
 
-Hay una caja de dos marchas que se cambia con Shift: **L** (corta) empuja fuerte pero se queda en algo más de la mitad de la punta, con el motor en el corte; **H** (larga) llega a la velocidad punta pero acelera poco desde abajo. Lo rápido es salir en L y pasar a H, y volver a L en las curvas lentas. El marcador muestra la marcha y el motor suena según la que llevas. Los rivales cambian solos. Se ajusta en `PHYS.gearL` y `PHYS.gearH`.
+Hay una caja de cinco marchas, **automática** o **manual** (en Opciones; en manual, E o X sube y Q o Z baja). Cada marcha llega hasta una parte de la velocidad punta del coche y las cortas empujan más; el empuje sigue una curva de par según las vueltas y la resistencia del aire hace que los últimos km/h cuesten. Mientras pisas el gas el coche acelera hasta su punta, que depende del terreno (barro, agua, fuera de pista…), de la lluvia y de los daños. En manual, si no subes llegas al corte de inyección (la marcha parpadea en rojo) y si vas en una marcha larga a poca velocidad el coche apenas empuja. Abajo a la derecha hay un velocímetro de aguja con cuentavueltas en la corona, la marcha y un cuentakilómetros de rodillos con lo recorrido. Los rivales cambian solos. Se ajusta en `PHYS.gears`, `PHYS.gearAcc`, `PHYS.drag` y `torque()` (`config.js`).
 
 ### Efecto de monitor
 
