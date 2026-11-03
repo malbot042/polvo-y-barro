@@ -1,6 +1,6 @@
 # Polvo y Barro
 
-Juego de rally y off-road en vista isométrica, para jugar en el navegador. Mezcla dos estilos de recreativa: el rally contra la cuenta atrás con cámara que sigue al coche, y el off-road de circuito cerrado con cuatro coches, saltos y nitro. Incluye un campeonato y un editor de circuitos.
+Juego de rally y off-road en vista isométrica, para jugar en el navegador. Mezcla dos estilos de recreativa: el rally contra la cuenta atrás con cámara que sigue al coche, y el off-road de circuito cerrado con cuatro coches y saltos. Incluye un campeonato y un editor de circuitos.
 
 Está hecho con HTML, CSS y JavaScript sin dependencias ni paso de compilación.
 
@@ -136,6 +136,10 @@ Las prestaciones salen de la época (los clásicos son de propulsión y más len
 ```
 
 El mundo mide 3600 × 2400 px (los circuitos guardados con la versión anterior, de 2400 × 1500, siguen valiendo). `type` es `circuito` o `tramo`. `s` puede ser `asfalto`, `tierra` o `nieve`, y `w` es el ancho en px (60–140). `rampa` es un salto natural: se coloca en el punto de la pista más cercano y se orienta solo según la marcha.
+
+## Versiones
+
+La versión del juego sale junto al logo y en Ayuda, con la lista de novedades de cada una. Se numera `0.MENOR.PARCHE`: cada cambio de funcionalidad publicado sube la menor y cada arreglo sube el parche. El número y la lista están en `VERSION` y `CHANGES` (`js/config.js`); al cambiar de versión se añade arriba de `CHANGES` lo que trae.
 
 ## Estructura
 

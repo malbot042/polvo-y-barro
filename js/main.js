@@ -1,7 +1,7 @@
 // Arranque: el juego ocupa la pantalla y el resto (carrera rápida, recreativa, campeonato, editor,
 // opciones y ayuda) va en ventanas. También paletas, controles y bucle principal.
 import { store, fmtTime, esc } from './util.js';
-import { SURF, THEME, CAR_MODELS, ERAS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, DEFAULT_CAR, OLD_CARS, carSpec, carsByEra } from './config.js';
+import { VERSION, CHANGES, SURF, THEME, CAR_MODELS, ERAS, UPGRADES, CONDITIONS, REPAIR_PER_PCT, ARCADE, DEFAULT_CAR, OLD_CARS, carSpec, carsByEra } from './config.js';
 import { BUILTIN_RAW, SEASON, ARCADE_STAGES } from './tracks.js';
 import { resolveDef, normalizeDef } from './track.js';
 import { createGame, RIVALS } from './game.js';
@@ -607,6 +607,11 @@ function showTab(t) {
 document.querySelectorAll('[data-win]').forEach((b) => b.addEventListener('click', () => showTab(openWin() === b.dataset.win ? 'play' : b.dataset.win)));
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => showTab('play')));
 $('wins').addEventListener('pointerdown', (e) => { if (e.target === $('wins')) showTab('play'); });
+
+// ---------- Versión y novedades ----------
+$('ver').textContent = 'v' + VERSION;
+$('ver2').textContent = 'Versión ' + VERSION;
+$('changes').innerHTML = CHANGES.map(([v, t]) => `<li><b>${v}</b> ${esc(t)}</li>`).join('');
 
 // ---------- HUD ----------
 let hudKey = '';

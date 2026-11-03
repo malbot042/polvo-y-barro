@@ -58,6 +58,9 @@ body { overflow: hidden; }
   text-transform: uppercase; white-space: nowrap;
 }
 .logo .y { color: var(--accent); }
+.logo .ver { font-family: var(--f-body); font-style: normal; font-weight: 600; font-size: 11px; letter-spacing: .02em; text-transform: none; color: var(--muted); vertical-align: middle; margin-left: 4px; }
+.changes { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 4px; }
+.changes b { display: inline-block; min-width: 4.2em; font-variant-numeric: tabular-nums; color: var(--accent); }
 .menu { display: flex; gap: 4px; overflow-x: auto; min-width: 0; margin-left: auto; scrollbar-width: none; }
 .menu button {
   font-family: var(--f-display); font-style: italic; font-weight: 800; font-stretch: 80%; font-size: 16px; text-transform: uppercase;

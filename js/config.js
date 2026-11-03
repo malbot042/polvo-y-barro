@@ -2,6 +2,32 @@
 // grip: agarre lateral (más alto = menos derrape) · max: multiplicador de velocidad punta · acc: de aceleración
 
 import { M_PER_PX } from './util.js';
+
+// Versión del juego: 0.MENOR.PARCHE. Cada cambio de funcionalidad publicado sube la menor y cada
+// arreglo, el parche. Al cambiarla, se añade arriba de CHANGES lo que trae (sale en Ayuda).
+export const VERSION = '0.20.0';
+export const CHANGES = [
+  ['0.20.0', 'Número de versión en el juego y lista de novedades.'],
+  ['0.19.0', 'Seis marchas largas y velocidad punta de su época para cada coche.'],
+  ['0.18.0', 'Marchas siempre automáticas y motor hecho con explosiones.'],
+  ['0.17.0', 'Caja de cinco marchas, velocímetro con cuentakilómetros y nuevo sonido de motor.'],
+  ['0.16.0', 'Circuitos variados en ambos sentidos y derrape sin aceleración.'],
+  ['0.15.0', 'Circuitos grandes, sin nitro ni obstáculos y con saltos naturales.'],
+  ['0.14.0', 'El juego como pantalla principal; el resto en ventanas.'],
+  ['0.13.0', 'Noche más clara y suave: luz de luna y faros difuminados.'],
+  ['0.12.0', 'Solo circuitos por continente: cuatro en cada uno.'],
+  ['0.11.0', 'Solo los 31 coches campeones del Mundial de Rallies.'],
+  ['0.10.0', 'Vuelta al mundo: diez circuitos nuevos, dos por continente.'],
+  ['0.9.0', 'Coches de rally con decoraciones clásicas de la época.'],
+  ['0.8.0', 'Efecto de monitor CRT: barras horizontales, fósforo y viñeta.'],
+  ['0.7.0', 'Vista isométrica, conducción arcade y modo recreativa.'],
+  ['0.6.0', 'Guía del proyecto para desarrollar con Claude Code.'],
+  ['0.5.0', 'Campeonato, garaje, daños, lluvia, noche, puentes y música.'],
+  ['0.4.0', 'Modo pantalla completa.'],
+  ['0.3.0', 'Sonido: motor con marchas, superficies, efectos y copiloto por voz.'],
+  ['0.2.0', 'Coches de rally más realistas, decoraciones y suciedad.'],
+  ['0.1.0', 'Prototipo jugable: rally y off-road con editor de circuitos.'],
+];
 export const SURF = {
   asfalto: { label: 'Asfalto', grip: 9.0, max: 1.00, acc: 1.00, col: '#4b4f56', dust: '#a3a8ad', skid: 'rgba(18,18,20,.40)' },
   tierra:  { label: 'Tierra',  grip: 4.3, max: 0.90, acc: 0.92, col: '#a5794d', dust: '#c9a476', skid: 'rgba(70,45,22,.32)' },

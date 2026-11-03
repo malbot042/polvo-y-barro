@@ -33,6 +33,10 @@ Module dependency order (also the concatenation order in `tools/build-single.mjs
 - **`career.js`**: season (`SEASON` in `tracks.js`), points/prizes, garage, upgrades and repairs.
 - **Persistence**: `localStorage` only, through `store.get/set` in `util.js`, which tolerates failures. Keys are prefixed `pyb-`.
 
+## Versioning
+
+`VERSION` and `CHANGES` in `config.js` (shown next to the logo and in the help window). Every commit that changes the game bumps `VERSION` (`0.MINOR.PATCH`: features bump the minor, fixes the patch) and adds a one-line Spanish entry at the top of `CHANGES`.
+
 ## Constraints
 
 - `tools/build-single.mjs` strips `import … from` lines with a regex and removes `export` only before `const|let|function|class`, then wraps all modules in a single IIFE scope. So: put each import on lines that match that pattern, don't use `export default`/`export { … }`/re-exports, and avoid top-level name clashes between modules.
